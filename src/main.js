@@ -201,7 +201,15 @@ function step(dt) {
     drawSurvivors(dt); drawCoins();
   }
   updateCamera(dt);
+  cullDetail();
   if (App.mode !== 'menu') { updateHud(dt); sounds(); }
+}
+let cullT = 0;
+function cullDetail() { // interiors only near you, underground rooms only while you're down there
+  const W = App.W; if (!W || (cullT++ % 6)) return; const me = App.me, f = me || { x: G.camera.position.x, y: 0, z: G.camera.position.z }, under = me && me.y < UNDER + 8;
+  for (const b of W.buildings) if (b.inner) b.inner.visible = !!me && !under && Math.abs(f.x - b.x) < 26 + b.w / 2 && Math.abs(f.z - b.z) < 26 + b.d / 2;
+  if (me) for (const f of W.fires) if ((!f.b || !f.b.wrecked) && Math.abs(f.x - me.x) < 30 && Math.abs(f.z - me.z) < 30) { const fx = f.b ? f.x : f.x, fz = f.b ? f.z : f.z; puff(f.fx != null ? f.fx : fx, (f.y || 0) + 0.5, f.fz != null ? f.fz : fz, 2, [0xff7b00, 0xffb703, 0xff4d00], { fire: 1, sp: 0.3, up: 2.2, s: 0.35, s1: 0.05, life: 0.7, spread: 0.6 }); }
+  for (const r of W.rooms) r.group.visible = !!under && f.x > r.x0 - 3 && f.x < r.x1 + 3 && f.z > r.z0 - 3 && f.z < r.z1 + 3;
 }
 function weatherNow() {
   const e = S.env || {}, on = S.phase === 'active'; const under = App.me && App.me.y < UNDER + 8;

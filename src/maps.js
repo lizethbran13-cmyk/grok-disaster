@@ -177,7 +177,7 @@ export function buildMap(id, scene) {
     for (let j = 0; j < 14; j++) { const x = (R() - 0.5) * 70, z = (R() - 0.5) * 70; if (Math.abs(x) < 4 || Math.abs(z) < 4 || W.walls.some((w) => x > w.x0 - 3 && x < w.x1 + 3 && z > w.z0 - 3 && z < w.z1 + 3)) continue; addTree(B, x, W.terrain(x, z), z, 0.8, 'pine', j); }
     for (let j = 0; j < 18; j++) { const x = (R() - 0.5) * 150, z = (R() - 0.5) * 150; if (Math.abs(x) < 45 && Math.abs(z) < 40) continue; addRock(B, x, W.terrain(x, z), z, 1 + R() * 2, j, 0x9ca3af); }
     // campfire (warm spot)
-    B.mesh(GEO.cyl(1.2, 1.3, 0.3, 16), M(0x6b7280, { r: 0.9 }), 6, 0.15, 6); for (let j = 0; j < 4; j++) B.add(GEO.cyl(0.12, 0.12, 1.4, 8), M(0x6b4423), mat4(6, 0.35, 6, Math.PI / 2, j * 0.8, 0)); B.mesh(GEO.cone(0.5, 1.1, 12), M(0xff7b00, { e: 0xff5400, ei: 2.5 }), 6, 0.9, 6);
+    B.mesh(GEO.cyl(1.2, 1.3, 0.3, 16), M(0x6b7280, { r: 0.9 }), 6, 0.15, 6); for (let j = 0; j < 4; j++) B.add(GEO.cyl(0.12, 0.12, 1.4, 8), M(0x6b4423), mat4(6, 0.35, 6, Math.PI / 2, j * 0.8, 0)); B.mesh(GEO.sphere(0.45, 12, 10), M(0xff7b00, { e: 0xff5400, ei: 2.5 }), 6, 0.55, 6);
     W.fires.push({ x: 6, y: 0, z: 6, r: 3.5 });
     [[4, -24, 0, 0xc1121f], [-24, 4, Math.PI / 2, 0x1d3557]].forEach((c) => addCar(B, c[0], 0, c[1], c[2], c[3]));
     // Mt. Grumble crater

@@ -32,7 +32,7 @@ export function makeBuilding(W, scene, o) {
   b.walls = []; b.plats = []; b.pads = [];
   const F = frame(b), lw = b.lw, ld = b.ld;
   const g = b.group = new THREE.Group(), up = b.upper = new THREE.Group(); scene.add(g); scene.add(up);
-  const B = new Batch(), U = new Batch();
+  const B = new Batch(), U = new Batch(), IB = new Batch();
   const wallM = M(b.wall, { r: 0.75 }), trimM = M(b.trim, { r: 0.5 }), innerM = M(b.inner, { r: 0.85 }), roofM = M(b.roof, { r: 0.55, cc: 0.25 });
   const put = (Bt, geo, mat, lx, ly, lz, rx, ry, rz, sx, sy, sz) => Bt.add(geo, mat, F.m(lx, ly, lz, rx, ry, rz, sx, sy, sz));
   const pbox = (Bt, mat, w, h, d, lx, ly, lz) => put(Bt, GEO.box(w, h, d), mat, lx, ly, lz);
@@ -115,7 +115,7 @@ export function makeBuilding(W, scene, o) {
   // inside / outside door waypoints
   const di = F.w(0, ld / 2 - 1.4), dout = F.w(0, ld / 2 + 1.8); b.doorIn = { x: di[0], z: di[1] }; b.doorOut = { x: dout[0], z: dout[1] };
   // interior
-  furnish(W, b, B, put, F);
+  furnish(W, b, IB, put, F);
   // elevator to roof
   if (b.elevator) {
     const pl = F.w(-lw / 2 + 1.3, -ld / 2 + 1.3); const rp = F.w(lw / 2 - 1.5, -ld / 2 + 1.5);
@@ -129,7 +129,7 @@ export function makeBuilding(W, scene, o) {
   }
   // basement / bunker below
   if (b.basement) makeRoom(W, scene, b, B, put, F, b.basement === true ? 'basement' : b.basement);
-  b.meshes = B.build(g); U.build(up);
+  b.meshes = B.build(g); U.build(up); b.inner = new THREE.Group(); g.add(b.inner); IB.build(b.inner, { cast: false });
   W.buildings.push(b);
   return b;
 }
@@ -150,11 +150,15 @@ function furnish(W, b, B, put, F) {
   };
   const chair = (lx, lz, col = 0xef476f) => { const c = M(col, { r: 0.5, cc: 0.4 }); put(B, GEO.rbox(0.45, 0.08, 0.45, 0.04), c, lx, 0.55, lz); put(B, GEO.rbox(0.45, 0.5, 0.07, 0.03), c, lx, 0.82, lz - 0.2); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach((s) => put(B, GEO.cyl(0.03, 0.03, 0.35, 6), dark, lx + s[0] * 0.18, 0.37, lz + s[1] * 0.18)); };
   const shelf = (lx, lz, w = 2, ry = 0, colors) => {
-    put(B, GEO.rbox(w, 2.0, 0.5, 0.04), M(0xf1e3cc, { r: 0.7 }), lx, 1.2, lz, 0, ry);
-    const cs = colors || [0xff595e, 0xffca3a, 0x8ac926, 0x1982c4, 0x6a4c93, 0xff924c];
-    for (let row = 0; row < 3; row++) for (let i = 0; i < Math.floor(w / 0.35); i++) {
-      const u = -w / 2 + 0.2 + i * 0.35, c = Math.cos(ry), s = Math.sin(ry);
-      put(B, GEO.rbox(0.26, 0.38, 0.3, 0.05), M(cs[(i + row * 2) % cs.length], { r: 0.45, cc: 0.4 }), lx + u * c, 0.6 + row * 0.6, lz - u * s + 0.04 * c, 0, ry);
+    const c = Math.cos(ry), sn = Math.sin(ry), at = (u, v) => [lx + u * c + v * sn, lz - u * sn + v * c];
+    const fm = M(0xf1e3cc, { r: 0.7 }), cs = colors || [0xff595e, 0xffca3a, 0x8ac926, 0x1982c4, 0x6a4c93, 0xff924c];
+    let q = at(0, -0.2); put(B, GEO.box(w, 2.0, 0.08), fm, q[0], 1.2, q[1], 0, ry);
+    [-1, 1].forEach((sd) => { const r = at(sd * (w / 2 - 0.04), 0); put(B, GEO.box(0.08, 2.0, 0.5), fm, r[0], 1.2, r[1], 0, ry); });
+    for (let row = 0; row < 4; row++) { const r = at(0, 0); put(B, GEO.box(w, 0.06, 0.5), fm, r[0], 0.28 + row * 0.6, r[1], 0, ry); }
+    for (let row = 0; row < 3; row++) for (let i = 0; i < Math.floor((w - 0.2) / 0.34); i++) {
+      const u = -w / 2 + 0.26 + i * 0.34, r = at(u, 0.02), k = (i + row * 2) % cs.length, tall = (i + row) % 3 === 0;
+      if (tall) put(B, GEO.cyl(0.12, 0.12, 0.42, 14), M(cs[k], { r: 0.35, cc: 0.5 }), r[0], 0.52 + row * 0.6, r[1]);
+      else put(B, GEO.rbox(0.26, 0.36, 0.28, 0.05), M(cs[k], { r: 0.45, cc: 0.4 }), r[0], 0.49 + row * 0.6, r[1], 0, ry);
     }
   };
   const sofa = (lx, lz, col = 0x4cc9f0) => { const c = M(col, { r: 0.85 }); put(B, GEO.rbox(2.2, 0.5, 0.9, 0.18), c, lx, 0.5, lz); put(B, GEO.rbox(2.2, 0.75, 0.3, 0.14), c, lx, 0.9, lz - 0.35); put(B, GEO.rbox(0.3, 0.65, 0.9, 0.12), c, lx - 1.05, 0.65, lz); put(B, GEO.rbox(0.3, 0.65, 0.9, 0.12), c, lx + 1.05, 0.65, lz); };
@@ -173,7 +177,7 @@ function furnish(W, b, B, put, F) {
     if (I === 'cabin') { // fireplace = warm spot
       put(B, GEO.rbox(1.8, 1.6, 0.8, 0.1), M(0x9c6644, { r: 0.9 }), -hx + 1.2, 1.0, -hz + 0.5);
       put(B, GEO.sphere(0.35, 12, 10), M(0xff7b00, { e: 0xff5400, ei: 2.5 }), -hx + 1.2, 0.6, -hz + 0.75);
-      const p = F.w(-hx + 1.2, -hz + 1.4); W.fires.push({ x: p[0], y: b.baseY + 0.2, z: p[1], r: 3.5, b });
+      const p = F.w(-hx + 1.2, -hz + 1.4), fp = F.w(-hx + 1.2, -hz + 0.75); W.fires.push({ x: p[0], y: b.baseY + 0.2, z: p[1], r: 3.5, b, fx: fp[0], fz: fp[1] });
     }
   } else if (I === 'shop') {
     for (let i = -1; i <= 1; i++) if (Math.abs(i * 2.6) < hx - 0.8) shelf(i * 2.6, -0.6, 1.8, Math.PI / 2);
@@ -190,9 +194,9 @@ function furnish(W, b, B, put, F) {
     crate(-hx + 1, -hz + 1, 1.2); crate(-hx + 1, -hz + 2.3, 1.0); crate(-hx + 2.3, -hz + 1, 1.0); crate(hx - 1, -hz + 1, 1.2);
     table(hx - 1.5, hz - 2.5, 2.0, 1.0, 0x94a3b8); table(-hx + 1.8, hz - 2.5, 2.0, 1.0, 0x94a3b8);
     // display saucer
-    put(B, GEO.cyl(1.6, 1.8, 0.4, 32), M(0x475569, { m: 0.6, r: 0.4 }), 0, 0.4, -1);
-    put(B, GEO.sphere(2.4, 32, 12), M(0xc0c8d4, { m: 0.9, r: 0.2 }), 0, 1.4, -1, 0, 0, 0.1, 1, 0.28, 1);
-    put(B, new THREE.SphereGeometry(1.0, 24, 12, 0, 6.283, 0, Math.PI / 2), M(0x9be7ff, { r: 0.05, op: 0.4, cc: 1 }), 0, 1.6, -1);
+    put(B, GEO.cyl(1.6, 1.8, 0.4, 32), M(0x475569, { m: 0.6, r: 0.4 }), 0, 0.4, -hz + 3);
+    put(B, GEO.sphere(2.4, 32, 12), M(0xc0c8d4, { m: 0.9, r: 0.2 }), 0, 1.4, -hz + 3, 0, 0, 0.1, 1, 0.28, 1);
+    put(B, new THREE.SphereGeometry(1.0, 24, 12, 0, 6.283, 0, Math.PI / 2), M(0x9be7ff, { r: 0.05, op: 0.4, cc: 1 }), 0, 1.6, -hz + 3);
     put(B, GEO.rbox(3.2, 0.6, 0.1, 0.05), M(0x22c55e, { e: 0x22c55e, ei: 0.5 }), 0, 2.9, -hz + 0.25);
   } else if (I === 'station') {
     put(B, GEO.rbox(2.4, 2.0, 5.2, 0.35), M(0xe63946, { r: 0.3, cc: 1 }), 0, 1.25, -0.4); put(B, GEO.rbox(2.2, 0.9, 1.6, 0.2), M(0xe63946, { r: 0.3, cc: 1 }), 0, 2.6, 1.0);
@@ -252,7 +256,7 @@ function makeRoom(W, scene, b, B, put, F, kind) {
     R.box(M(0xfacc15), ww, 0.05, 0.3, b.x, Y + 0.03, room.z0 + 3.1);
     for (let i = 0; i < 3; i++) { R.rbox(M(0x8b5cf6, { r: 0.5 }), 1.6, 0.12, 0.5, 0.04, room.x0 + 2 + i * 3, Y + 0.5, room.z1 - 0.6); }
   } else {
-    for (let i = 0; i < Math.floor(ww / 2.5); i++) { const x = room.x0 + 1.3 + i * 2.5; R.rbox(M(0xe9d8a6, { r: 0.7 }), 2.0, 2.2, 0.5, 0.04, x, Y + 1.1, room.z0 + 0.35); for (let k = 0; k < 6; k++) R.mesh(GEO.cyl(0.12, 0.12, 0.28, 14), M(cs[(k + i) % 5], { r: 0.3, m: 0.4 }), x - 0.75 + k * 0.3, Y + 0.6 + (k % 2) * 0.7, room.z0 + 0.4); }
+    for (let i = 0; i < Math.floor(ww / 2.5); i++) { const x = room.x0 + 1.3 + i * 2.5; R.rbox(M(0xe9d8a6, { r: 0.7 }), 2.0, 2.2, 0.5, 0.04, x, Y + 1.1, room.z0 + 0.35); for (let k = 0; k < 6; k++) R.mesh(GEO.cyl(0.12, 0.12, 0.28, 14), M(cs[(k + i) % 5], { r: 0.3, m: 0.4 }), x - 0.75 + k * 0.3, Y + 0.6 + (k % 2) * 0.7, room.z0 + 0.72); }
     R.rbox(M(0xf1f5f9, { r: 0.4 }), 0.9, 1.1, 0.8, 0.1, room.x1 - 0.7, Y + 0.55, room.z1 - 0.7); R.mesh(GEO.cyl(0.28, 0.28, 0.06, 20), M(0x0f172a, { cc: 1 }), room.x1 - 0.7, Y + 0.7, room.z1 - 1.12, Math.PI / 2, 0, 0);
     for (let i = 0; i < 3; i++) R.rbox(M(0xd4a373, { r: 0.8 }), 0.8, 0.8, 0.8, 0.06, room.x1 - 0.7, Y + 0.4 + i * 0.8 * (i < 2 ? 1 : 1), room.z0 + 0.7 + (i === 2 ? 0 : i * 0.9));
     R.mesh(GEO.cyl(0.2, 0.2, 0.9, 16), M(0x48cae4, { r: 0.1, op: 0.6, cc: 1 }), room.x0 + 0.6, Y + 0.45, room.z1 - 0.6);

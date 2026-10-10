@@ -9,7 +9,7 @@ function cg(key, fn) { let g = gc.get(key); if (!g) { g = fn(); gc.set(key, g); 
 export const GEO = {
   sphere: (r, w = 24, h = 16) => cg('s' + r + w + h, () => new THREE.SphereGeometry(r, w, h)),
   cap: (r, l, s = 16) => cg('c' + r + l + s, () => new THREE.CapsuleGeometry(r, l, 6, s)),
-  rbox: (w, h, d, r = 0.08, s = 3) => cg('rb' + [w, h, d, r, s], () => new RoundedBoxGeometry(w, h, d, s, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001))),
+  rbox: (w, h, d, r = 0.08, s = 2) => cg('rb' + [w, h, d, r, s], () => new RoundedBoxGeometry(w, h, d, s, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001))),
   box: (w, h, d) => cg('b' + [w, h, d], () => new THREE.BoxGeometry(w, h, d)),
   cyl: (rt, rb, h, s = 24) => cg('cy' + [rt, rb, h, s], () => new THREE.CylinderGeometry(rt, rb, h, s)),
   cone: (r, h, s = 24) => cg('co' + [r, h, s], () => new THREE.ConeGeometry(r, h, s)),
@@ -29,13 +29,41 @@ export function mat4(x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) 
   return new THREE.Matrix4().compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), _s.set(sx, sy, sz));
 }
 // static geometry batcher: one merged mesh per material
+// one shared "uber" material: colour, roughness, metalness and glow live in vertex attributes,
+// so every opaque prop of a building/scene merges into a single draw call
+let UBER = null;
+export function uberMat() {
+  if (UBER) return UBER;
+  UBER = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 1 });
+  UBER.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 rm; attribute vec3 em; varying vec2 vRM; varying vec3 vEM;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRM = rm; vEM = em;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vRM; varying vec3 vEM;')
+      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vRM.x;')
+      .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = vRM.y;')
+      .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance = vEM;');
+  };
+  UBER.customProgramCacheKey = () => 'uber1';
+  return UBER;
+}
+function route(mat) {
+  if (!mat.isMeshStandardMaterial || mat.transparent || mat.vertexColors || mat.side !== THREE.FrontSide || mat.flatShading || mat.map || mat === UBER) return false;
+  return true;
+}
 export class Batch {
   constructor() { this.groups = new Map(); }
   add(geo, mat, m) {
-    let e = this.groups.get(mat); if (!e) { e = []; this.groups.set(mat, e); }
+    const kind = route(mat), key = kind ? uberMat() : mat;
+    let e = this.groups.get(key); if (!e) { e = []; this.groups.set(key, e); }
     let g = geo.index ? geo.toNonIndexed() : geo.clone();
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
+    if (kind) {
+      const n = g.attributes.position.count, c = new Float32Array(n * 3), rm = new Float32Array(n * 2), em = new Float32Array(n * 3), col = mat.color, e = mat.emissive, ei = mat.emissiveIntensity || 0;
+      const r = mat.clearcoat > 0 ? Math.min(mat.roughness, 0.35) : mat.roughness, mt = mat.metalness;
+      for (let i = 0; i < n; i++) { c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b; rm[i * 2] = r; rm[i * 2 + 1] = mt; em[i * 3] = e.r * ei; em[i * 3 + 1] = e.g * ei; em[i * 3 + 2] = e.b * ei; }
+      g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.setAttribute('rm', new THREE.BufferAttribute(rm, 2)); g.setAttribute('em', new THREE.BufferAttribute(em, 3));
+    }
     g.applyMatrix4(m); e.push(g); return this;
   }
   mesh(geo, mat, x, y, z, rx, ry, rz, sx, sy, sz) { return this.add(geo, mat, mat4(x, y, z, rx, ry, rz, sx, sy, sz)); }
@@ -110,9 +138,18 @@ export function makeSurvivor(look) {
   // jetpack flame
   P.flames = new THREE.Group(); P.flames.visible = false; P.backG.add(P.flames);
   [-0.12, 0.12].forEach((x) => mesh(GEO.cone(0.08, 0.45, 12), glow(0xffa53d, 0.85), x, -0.45, -0.05, P.flames, false).rotation.x = Math.PI);
-  root.traverse((o) => { if (o.isMesh) { o.castShadow = o.castShadow !== false; } });
+  // merge the static bits of every animated part (fewer draw calls)
+  [body, head, ...P.legs, ...P.arms].forEach((g) => compact(g, [P.mouth]));
+  compact(P.hatG, []);
   P.walk = 0; P.stun = 0;
   return P;
+}
+export function compact(g, exclude) {
+  const ms = g.children.filter((c) => c.isMesh && !exclude.includes(c) && c.visible);
+  if (ms.length < 2) return;
+  const B = new Batch(), noShadow = new Batch();
+  ms.forEach((m) => { m.updateMatrix(); (m.castShadow ? B : noShadow).add(m.geometry, m.material, m.matrix); g.remove(m); });
+  B.build(g); noShadow.build(g, { cast: false });
 }
 export function setHat(P, hat, color = 0xef4444) {
   const g = P.hatG; while (g.children.length) g.remove(g.children[0]);

@@ -91,7 +91,15 @@ function updateCamera(dt) {
   if (under) dist = Math.min(dist, (UNDER + 9.5 - camT.y) / Math.max(0.2, cy));
   camP.set(camT.x + cx * dist, camT.y + cy * dist, camT.z + cz * dist);
   // interiors: keep the camera INSIDE the room / building footprint (dollhouse cutaway, roof + upper floors hidden)
-  if (under) { const r = roomAt(W, me.x, me.z); if (r) { camP.x = Math.max(r.x0 + 0.7, Math.min(r.x1 - 0.7, camP.x)); camP.z = Math.max(r.z0 + 0.7, Math.min(r.z1 - 0.7, camP.z)); camP.y = Math.max(UNDER + 2.2, Math.min(UNDER + 9.5, camP.y)); } }
+  if (under) { const r = roomAt(W, me.x, me.z); if (r) {
+    const cl = (p) => { p.x = Math.max(r.x0 + 0.7, Math.min(r.x1 - 0.7, p.x)); p.z = Math.max(r.z0 + 0.7, Math.min(r.z1 - 0.7, p.z)); };
+    cl(camP);
+    if (Math.hypot(camP.x - camT.x, camP.z - camT.z) < 3.5) { // too cramped for your angle: swing to the room's long axis, toward the far wall
+      const lx = r.x1 - r.x0 >= r.z1 - r.z0, cx0 = (r.x0 + r.x1) / 2, cz0 = (r.z0 + r.z1) / 2;
+      if (lx) { camP.x = camT.x + (camT.x < cx0 ? 1 : -1) * 6.5; camP.z = camT.z + (camT.z < cz0 ? 1 : -1) * 1.5; } else { camP.z = camT.z + (camT.z < cz0 ? 1 : -1) * 6.5; camP.x = camT.x + (camT.x < cx0 ? 1 : -1) * 1.5; }
+      camP.y = UNDER + 5.8; cl(camP);
+    }
+    camP.y = Math.max(UNDER + 2.2, Math.min(UNDER + 9.5, camP.y)); } }
   else if (b) { camP.x = Math.max(b.ix0 + 0.5, Math.min(b.ix1 - 0.5, camP.x)); camP.z = Math.max(b.iz0 + 0.5, Math.min(b.iz1 - 0.5, camP.z)); camP.y = Math.max(camP.y, me.y + 3.2); }
   const tg = groundAt(W, camP.x, camP.z, camP.y + 2); if (!under && camP.y < tg + 0.6) camP.y = tg + 0.6;
   if (!under && FX.water.visible && camP.y < FX.water.position.y + 1.2) camP.y = FX.water.position.y + 1.2;

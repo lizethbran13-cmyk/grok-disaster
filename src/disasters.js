@@ -278,7 +278,7 @@ export function drawDisaster(S, W, dt) {
     }
     const vy = W.volcano.real ? W.volcano.y + 1 : 18 + W.terrain(W.volcano.x, W.volcano.z);
     if (Math.random() < 0.8) puff(W.volcano.x + (Math.random() - 0.5) * 4, vy, W.volcano.z + (Math.random() - 0.5) * 4, 2, [0x4b4b55, 0x6b6b75, 0x333338], { sp: 2, up: 9, s: 2, s1: 6, life: 3.5, drag: 0.4 });
-    if (Math.random() < 0.6) sparks(W.volcano.x, vy, W.volcano.z, 3, 0xff8a2a, { sp: 10, up: 12, s: 0.35, life: 1.6, g: 14 });
+    if (Math.random() < 0.6) sparks(W.volcano.x, vy, W.volcano.z, 3, 0xff8a2a, { sp: 10, up: 12, s: 0.35, life: 1.6, g: 14 }); if (Math.random() < 0.5) puff(W.volcano.x, vy, W.volcano.z, 2, [0xff6a00, 0xffb703], { fire: 1, sp: 2, up: 6, s: 1.2, s1: 0.3, life: 0.8 });
     FX.lava.visible = e.lava.r > 0.5; FX.lava.position.set(e.lava.x, e.lava.y, e.lava.z); FX.lava.scale.setScalar(Math.max(0.01, e.lava.r));
   } else { FX.lava.visible = false; if (V.volc) V.volc.visible = false; }
   // hazards telegraphs
@@ -298,7 +298,7 @@ export function drawDisaster(S, W, dt) {
 export function playFx(ev, W, SFX) {
   const k = ev.k;
   if (k === 'bolt') { bolt(ev.x, ev.y, ev.z); SFX.thunder(); }
-  else if (k === 'boom') { const lava = ev.c === 'lava'; puff(ev.x, ev.y, ev.z, lava ? 10 : 16, lava ? [0xff6a00, 0xffb703, 0x3a3a3a] : [0xff7a2a, 0xffd166, 0x6b7280, 0x9ca3af], { sp: 6 * ev.s, up: 4, s: 0.9 * ev.s, s1: 2.6 * ev.s, life: 1.3 }); debris(ev.x, ev.y, ev.z, lava ? 4 : 8, lava ? [0x3a2a22, 0xff5a00] : [0x4a3b33, 0x6b5a4f, 0xa3a3a3], { sp: 8, up: 8, s: 0.45 * ev.s, floor: ev.y }); sparks(ev.x, ev.y + 0.5, ev.z, 20, lava ? 0xff7a00 : 0xffb347, { sp: 10 }); shockwave(ev.x, ev.y, ev.z, 6 * ev.s, 0xffb347); G.flash.position.set(ev.x, ev.y + 4, ev.z); G.flash.color.setHex(0xffa040); G.flash.intensity = 18; SFX.boom(Math.min(1, 0.6 * ev.s)); }
+  else if (k === 'boom') { const lava = ev.c === 'lava'; puff(ev.x, ev.y, ev.z, 10, lava ? [0x4a4a52, 0x6b6b75] : [0x9ca3af, 0xd1d5db, 0x6b7280], { sp: 5 * ev.s, up: 3, s: 0.7 * ev.s, s1: 2.0 * ev.s, life: 1.4 }); puff(ev.x, ev.y + 0.5, ev.z, 8, [0xff7a1a, 0xffc93c, 0xff4d00], { fire: 1, sp: 6 * ev.s, up: 4, s: 0.8 * ev.s, s1: 0.2, life: 0.5 }); debris(ev.x, ev.y, ev.z, lava ? 4 : 8, lava ? [0x3a2a22, 0xff5a00] : [0x4a3b33, 0x6b5a4f, 0xa3a3a3], { sp: 8, up: 8, s: 0.45 * ev.s, floor: ev.y }); sparks(ev.x, ev.y + 0.5, ev.z, 20, lava ? 0xff7a00 : 0xffb347, { sp: 10 }); shockwave(ev.x, ev.y, ev.z, 6 * ev.s, 0xffb347); G.flash.position.set(ev.x, ev.y + 4, ev.z); G.flash.color.setHex(0xffa040); G.flash.intensity = 18; SFX.boom(Math.min(1, 0.6 * ev.s)); }
   else if (k === 'meteor') faller(ev.id, ev.x, ev.y, ev.z, ev.T, 'meteor', ev.s);
   else if (k === 'bomb') { faller(ev.id, ev.x, ev.y, ev.z, ev.T, 'bomb', ev.s); const f = FX.meteors[FX.meteors.length - 1]; f.dx = ev.sx - ev.x; f.dz = ev.sz - ev.z; f.h = 25; }
   else if (k === 'stomp') { puff(ev.x, ev.y, ev.z, 18, [0xc2a37a, 0xd6c3a0, 0x9ca3af], { sp: 9, up: 2, s: 1, s1: 3, life: 1.5 }); shockwave(ev.x, ev.y, ev.z, 10, 0xffffff, 0.8); debris(ev.x, ev.y, ev.z, 6, [0x6b7280, 0x8b5a2b], { sp: 9, up: 6, floor: ev.y }); SFX.boom(0.9); }

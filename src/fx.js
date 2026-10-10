@@ -14,6 +14,7 @@ class Pool {
 }
 export function initFX() {
   FX.puffs = new Pool(GEO.sphere(1, 14, 10), new THREE.MeshStandardMaterial({ roughness: 0.9 }), 360);
+  FX.fire = new Pool(GEO.sphere(1, 12, 8), new THREE.MeshBasicMaterial({ toneMapped: false }), 240);
   FX.debris = new Pool(GEO.rbox(1, 1, 1, 0.15, 2), new THREE.MeshStandardMaterial({ roughness: 0.7 }), 220, true);
   FX.sparks = new Pool(GEO.sphere(1, 8, 6), new THREE.MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }), 260);
   FX.hail = new Pool(GEO.sphere(1, 10, 8), M(0xe0f7ff, { r: 0.1, cc: 1 }), 220, true);
@@ -63,9 +64,10 @@ export function initFX() {
 }
 /* ---------- particles ---------- */
 export function puff(x, y, z, n, color, o = {}) {
+  const pool = o.fire ? FX.fire : FX.puffs;
   for (let i = 0; i < n; i++) {
     const a = Math.random() * 6.283, sp = (o.sp || 3) * (0.4 + Math.random());
-    FX.puffs.add({ x: x + (Math.random() - 0.5) * (o.spread || 1), y: y + Math.random() * (o.yr || 0.5), z: z + (Math.random() - 0.5) * (o.spread || 1), vx: Math.cos(a) * sp, vy: (o.up || 2) * (0.5 + Math.random()), vz: Math.sin(a) * sp, t: 0, T: (o.life || 1.2) * (0.7 + Math.random() * 0.6), s0: (o.s || 0.6) * (0.6 + Math.random() * 0.6), s1: (o.s1 || 1.6) * (0.7 + Math.random() * 0.6), c: Array.isArray(color) ? color[i % color.length] : color, g: o.g || 0, drag: o.drag || 1.5 });
+    pool.add({ x: x + (Math.random() - 0.5) * (o.spread || 1), y: y + Math.random() * (o.yr || 0.5), z: z + (Math.random() - 0.5) * (o.spread || 1), vx: Math.cos(a) * sp, vy: (o.up || 2) * (0.5 + Math.random()), vz: Math.sin(a) * sp, t: 0, T: (o.life || 1.2) * (0.7 + Math.random() * 0.6), s0: (o.s || 0.6) * (0.6 + Math.random() * 0.6), s1: (o.s1 || 1.6) * (0.7 + Math.random() * 0.6), c: Array.isArray(color) ? color[i % color.length] : color, g: o.g || 0, drag: o.drag || 1.5 });
   }
 }
 export function debris(x, y, z, n, colors, o = {}) {
@@ -123,10 +125,11 @@ export function clearFallers() { FX.meteors.forEach((f) => G.scene.remove(f.m));
 export function updateFX(dt, focus, weather) {
   const t = G.t;
   // puffs
-  let P = FX.puffs, n = 0;
+  let P, n;
+  for (P of [FX.puffs, FX.fire]) { n = 0;
   P.p = P.p.filter((o) => (o.t += dt) < o.T);
   for (const o of P.p) { const k = Math.exp(-o.drag * dt); o.vx *= k; o.vz *= k; o.vy = o.vy * k - o.g * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.z += o.vz * dt; const u = o.t / o.T, s = (o.s0 + (o.s1 - o.s0) * Math.sqrt(u)) * (1 - u * u * u); _o.position.set(o.x, o.y, o.z); _o.scale.setScalar(Math.max(0.001, s)); _o.rotation.set(0, 0, 0); _o.updateMatrix(); P.m.setMatrixAt(n, _o.matrix); P.m.setColorAt(n, _c.setHex(o.c)); n++; }
-  P.m.count = n; P.m.instanceMatrix.needsUpdate = true; if (P.m.instanceColor) P.m.instanceColor.needsUpdate = true;
+  P.m.count = n; P.m.instanceMatrix.needsUpdate = true; if (P.m.instanceColor) P.m.instanceColor.needsUpdate = true; }
   // debris
   P = FX.debris; n = 0; P.p = P.p.filter((o) => (o.t += dt) < o.T);
   for (const o of P.p) { o.vy -= 22 * dt; o.x += o.vx * dt; o.y += o.vy * dt; o.z += o.vz * dt; o.rx += o.wr * dt; o.ry += o.wr * 0.7 * dt; if (o.y < o.gy + o.s * 0.5) { o.y = o.gy + o.s * 0.5; o.vy *= -0.35; o.vx *= 0.6; o.vz *= 0.6; o.wr *= 0.6; } const sh = o.t > o.T - 0.5 ? (o.T - o.t) / 0.5 : 1; _o.position.set(o.x, o.y, o.z); _o.rotation.set(o.rx, o.ry, 0); _o.scale.setScalar(o.s * sh); _o.updateMatrix(); P.m.setMatrixAt(n, _o.matrix); P.m.setColorAt(n, _c.setHex(o.c)); n++; }
@@ -159,9 +162,9 @@ export function updateFX(dt, focus, weather) {
   FX.bolts = FX.bolts.filter((b) => { b.t += dt; b.g.visible = b.t < 0.06 || (b.t > 0.1 && b.t < 0.32); if (b.t > 0.35) { G.scene.remove(b.g); return false; } return true; });
   FX.waves = FX.waves.filter((w) => { w.t += dt; const u = w.t / w.T; w.m.scale.setScalar(0.5 + u * w.r); w.m.material.opacity = 0.8 * (1 - u); if (u >= 1) { G.scene.remove(w.m); return false; } return true; });
   // fallers
-  FX.meteors = FX.meteors.filter((f) => { f.t += dt; const u = Math.min(1, f.t / f.T); f.m.position.set(f.x + f.dx * (1 - u), f.y + f.h * (1 - u) + (f.kind === 'bomb' ? Math.sin(u * Math.PI) * 18 : 0), f.z + f.dz * (1 - u)); f.m.rotation.x += dt * 3; f.m.rotation.y += dt * 2; if (Math.random() < 0.7) puff(f.m.position.x, f.m.position.y, f.m.position.z, 1, f.kind === 'bomb' ? [0xff9a3c, 0x555555] : [0xff7a2a, 0xffd166, 0x6b7280], { sp: 0.5, up: 0.5, s: 0.6 * f.size, s1: 1.8 * f.size, life: 0.9 }); if (u >= 1) { G.scene.remove(f.m); return false; } return true; });
+  FX.meteors = FX.meteors.filter((f) => { f.t += dt; const u = Math.min(1, f.t / f.T); f.m.position.set(f.x + f.dx * (1 - u), f.y + f.h * (1 - u) + (f.kind === 'bomb' ? Math.sin(u * Math.PI) * 18 : 0), f.z + f.dz * (1 - u)); f.m.rotation.x += dt * 3; f.m.rotation.y += dt * 2; if (Math.random() < 0.5) puff(f.m.position.x, f.m.position.y, f.m.position.z, 1, [0x9aa0a8, 0xc8ccd2, 0x6b7280], { sp: 0.3, up: 0.3, s: 0.35 * f.size, s1: 1.0 * f.size, life: 1.0 }); if (Math.random() < 0.7) puff(f.m.position.x, f.m.position.y, f.m.position.z, 1, [0xff9a3c, 0xffd166], { fire: 1, sp: 0.6, up: 0.2, s: 0.4 * f.size, s1: 0.1, life: 0.35 }); if (u >= 1) { G.scene.remove(f.m); return false; } return true; });
   // shader clocks
   [FX.waterMat, FX.lavaMat, FX.torMat].forEach((m) => { if (m.userData.sh) m.userData.sh.uniforms.uT.value = t; });
   // coins spin handled by sim visuals
 }
-export function clearFX() { FX.puffs.clear(); FX.debris.clear(); FX.sparks.clear(); FX.hail.clear(); clearFallers(); FX.rings.forEach((r) => { r.used = false; r.g.visible = false; }); FX.lines.forEach((l) => { l.used = false; l.m.visible = false; }); }
+export function clearFX() { FX.puffs.clear(); FX.fire.clear(); FX.debris.clear(); FX.sparks.clear(); FX.hail.clear(); clearFallers(); FX.rings.forEach((r) => { r.used = false; r.g.visible = false; }); FX.lines.forEach((l) => { l.used = false; l.m.visible = false; }); }

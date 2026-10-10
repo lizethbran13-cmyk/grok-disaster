@@ -73,6 +73,7 @@ function drawCoins() {
 let hiddenB = null; const camT = new THREE.Vector3(), camP = new THREE.Vector3();
 function updateCamera(dt) {
   const W = App.W, me = App.me;
+  if (App.cam) { G.camera.position.set(App.cam.x, App.cam.y, App.cam.z); G.camera.lookAt(App.cam.lx, App.cam.ly, App.cam.lz); G.focus.set(App.cam.lx, 0, App.cam.lz); if (me) { const b = buildingAt(W, me.x, me.y, me.z); if (b !== hiddenB) { if (hiddenB) hiddenB.upper.visible = !hiddenB.wrecked; if (b && App.cam.hide !== false) b.upper.visible = false; hiddenB = b; } } return; }
   if (App.mode === 'menu' || !me) {
     const a = G.t * 0.06; camP.set(Math.cos(a) * 52, 30, Math.sin(a) * 52); G.camera.position.lerp(camP, 0.05); G.camera.lookAt(0, 2, 0); G.focus.set(0, 0, 0);
     if (hiddenB) { hiddenB.upper.visible = !hiddenB.wrecked; hiddenB = null; } return;
@@ -89,6 +90,7 @@ function updateCamera(dt) {
   if (under) dist = Math.min(dist, (UNDER + 5.6 - camT.y) / Math.max(0.2, cy));
   camP.set(camT.x + cx * dist, camT.y + cy * dist, camT.z + cz * dist);
   const tg = groundAt(W, camP.x, camP.z, camP.y + 2); if (!under && camP.y < tg + 0.6) camP.y = tg + 0.6;
+  if (!under && FX.water.visible && camP.y < FX.water.position.y + 1.2) camP.y = FX.water.position.y + 1.2;
   const sh = (S.env && S.env.shake) || 0; if (sh > 0) { camP.x += (Math.random() - 0.5) * sh * 0.6; camP.y += (Math.random() - 0.5) * sh * 0.5; camP.z += (Math.random() - 0.5) * sh * 0.6; }
   G.camera.position.lerp(camP, Math.min(1, dt * 14)); G.camera.lookAt(camT);
   G.focus.set(me.x, under ? 0 : me.y, me.z);
@@ -133,6 +135,7 @@ App.startGuest = function (d) {
   enterGame();
 };
 function enterGame() {
+  const tb = $('toasts'); if (tb) tb.innerHTML = '';
   clearFX(); resetVisuals(); hidePanels(); $('title').classList.add('hidden'); $('hud').classList.remove('hidden');
   I.enabled = true; App.lastPhase = null; App.lastWave = 0; App.waveCoins = 0; App.roundCoins = 0; App.roundKO = false; App.roundSaved = false;
   SV.d.stats.maps[App.W.id] = 1; if (Object.keys(SV.d.stats.maps).length >= 4) achieve('travel'); save();
@@ -411,5 +414,5 @@ App.sim = (sec, sub = 0.05) => { for (let t = 0; t < sec; t += sub) step(sub); }
 App.wreck = (b) => wreckBuilding(App.W, App.W.root, b);
 App.force = (id) => { if (S.phase !== 'calm') return; S.next = id; S.picked = true; S.t = 0.01; App.sim(7.2); };
 App.tp = (x, y, z) => { const m = App.me; m.x = x; m.y = y; m.z = z; m.vy = 0; const p = S.players.find((q) => q.id === m.id); if (p && p !== m) { p.x = x; p.y = y; p.z = z; } };
-App.SV = SV; App.save = save; App.DZ = DZ; App.H = H; App.shelter = shelter; App.Net = Net;
+App.setMood = setMood; App.SV = SV; App.save = save; App.DZ = DZ; App.H = H; App.shelter = shelter; App.Net = Net;
 const grokParams = window.GrokNet && GrokNet.params && GrokNet.params(); if (grokParams) Net.fromParams(grokParams);

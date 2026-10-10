@@ -82,7 +82,7 @@ export function buildMap(id, scene) {
     makeBuilding(W, root, { x: 28, z: 26, w: 12, d: 7, h: 3.6, door: 'w', wall: 0x8fbc8f, trim: 0xffffff, roof: 0x2d6a4f, roofType: 'gable', interior: 'home', name: 'Barracks B' });
     makeBuilding(W, root, { x: 9, z: 18, w: 10, d: 8, h: 3.8, door: 'w', wall: 0xffb703, trim: 0xffffff, roof: 0xfb8500, roofType: 'flat', interior: 'diner', name: 'Mess Hall', sign: 0xfb8500 });
     makeBuilding(W, root, { x: -10, z: 36, w: 10, d: 9, h: 5, ceil: 5, door: 'e', wall: 0xe63946, trim: 0xffffff, roof: 0x9d0208, roofType: 'flat', interior: 'station', wideDoor: 3.6, name: 'Fire Station', sturdy: true });
-    lookout(W, B, -14, -48, 6, Math.PI, 'Guard Tower');
+    lookout(W, B, -14, -48, 6, 0, 'Guard Tower'); lookout(W, B, 10, 34, 6, -Math.PI / 2, 'Watch Tower', 0x3a86ff);
     waterTower(B, -50, -38); radar(B, 46, -44); radar(B, 50, 34);
     fence(B, W, -56, -56, 56, -56, 0xe5e7eb); fence(B, W, -56, -56, -56, 40, 0xe5e7eb); fence(B, W, 56, -56, 56, 40, 0xe5e7eb);
     for (let i = 0; i < 26; i++) { const x = (R() - 0.5) * 140, z = (R() - 0.5) * 140; if (Math.abs(x) < 52 && Math.abs(z) < 60) continue; addTree(B, x, W.terrain(x, z), z, 0.8 + R() * 0.6, 'cactus'); }
@@ -139,7 +139,7 @@ export function buildMap(id, scene) {
     let i = 0;
     for (const x of [-52, -36, -20, 20, 36]) { makeBuilding(W, root, { x, z: -6, w: 9, d: 8, h: 3.8, door: 's', wall: pastel[i % 8], roof: rf[i % 6], interior: 'home', basement: i % 2 === 0, name: 'Beach House' }); i++; }
     for (const x of [-52, -36, 20, 36, 52]) { makeBuilding(W, root, { x, z: -24, w: 9, d: 8, h: 3.8, door: 'n', wall: pastel[(i + 3) % 8], roof: rf[i % 6], interior: 'home', basement: i % 2 === 1, name: 'Beach House' }); i++; }
-    makeBuilding(W, root, { x: -14, z: -40, w: 12, d: 10, h: 20, door: 'e', wall: 0x4cc9f0, trim: 0xffffff, roof: 0x334155, roofType: 'flat', elevator: true, sturdy: true, interior: 'office', name: 'Sunset Hotel' });
+    makeBuilding(W, root, { x: -14, z: -40, w: 12, d: 10, h: 20, door: 'e', wall: 0xff8fab, trim: 0xffffff, roof: 0x334155, roofType: 'flat', elevator: true, sturdy: true, interior: 'office', name: 'Sunset Hotel' });
     makeBuilding(W, root, { x: 12, z: -40, w: 10, d: 8, h: 4.2, door: 'w', wall: 0xff70a6, roof: 0xffd670, roofType: 'flat', interior: 'diner', name: 'Ice Cream Parlor', sign: 0xff70a6, basement: true });
     makeBuilding(W, root, { x: 52, z: -6, w: 9, d: 8, h: 4.2, door: 's', wall: 0x70d6ff, roof: 0xff9770, roofType: 'flat', interior: 'shop', name: 'Surf Shop', sign: 0xff9770 });
     makeBuilding(W, root, { x: 52, z: -48, baseY: W.terrain(52, -48), w: 6, d: 6, h: 16, door: 'w', wall: 0xffffff, trim: 0xef233c, roof: 0xef233c, roofType: 'flat', elevator: true, sturdy: true, interior: 'office', name: 'Lighthouse', style: 'tower' });
@@ -147,7 +147,7 @@ export function buildMap(id, scene) {
     // pier
     B.add(GEO.rbox(6, 0.35, 40, 0.06), M(0xb5835a, { r: 0.75 }), mat4(-30, 0.6, 42)); addPlat(W, -33, 22, -27, 62, 0.78);
     for (let z = 24; z < 62; z += 5) [-32.6, -27.4].forEach((x) => B.mesh(GEO.cyl(0.25, 0.25, 4, 10), M(0x8b5e34, { r: 0.85 }), x, -1.4, z));
-    lookout(W, B, 8, 26, 5.5, 0, 'Lifeguard Tower', 0xef233c); lookout(W, B, 40, 28, 5.5, 0, 'Lifeguard Tower 2', 0xffb703);
+    lookout(W, B, 8, 30, 5.5, Math.PI, 'Lifeguard Tower', 0xef233c); lookout(W, B, 40, 30, 5.5, Math.PI, 'Lifeguard Tower 2', 0xffb703);
     for (let j = 0; j < 12; j++) umbrella(B, -60 + j * 10 + R() * 3, 22 + R() * 6, rf[j % 6], W.terrain(-60 + j * 10, 24));
     for (let j = 0; j < 22; j++) { const x = -70 + j * 6.6 + R() * 2, z = 9 + R() * 2; addTree(B, x, 0, j % 2 ? z : z - 22 - R() * 4, 0.9 + R() * 0.4, 'palm', j); }
     for (let j = 0; j < 6; j++) B.mesh(GEO.sphere(0.4, 20, 14), M([0xff595e, 0xffca3a, 0x1982c4][j % 3], { r: 0.3, cc: 0.8 }), -50 + j * 18, W.terrain(-50 + j * 18, 28) + 0.4, 28);
@@ -172,7 +172,7 @@ export function buildMap(id, scene) {
     makeBuilding(W, root, { x: 20, z: 34, w: 7, d: 7, h: 12, door: 'w', wall: 0x2d6a4f, trim: 0xffd166, roof: 0xffd166, roofType: 'flat', interior: 'office', elevator: true, sturdy: true, name: 'Ranger Tower' });
     makeBuilding(W, root, { x: -44, z: -30, w: 7, d: 6, h: 3.6, door: 'e', wall: 0x7f5539, trim: 0x3d2817, roof: 0x5c4033, roofType: 'flat', interior: 'shop', basement: 'mine', name: 'Mine Entrance', sign: 0xffb703, sturdy: true });
     W.high.push({ x: 30, y: W.terrain(30, -32), z: -32, label: 'Pine Hill' }); W.high.push({ x: 36, y: W.terrain(36, -36), z: -36, label: 'Pine Hill' });
-    lookout(W, B, -36, 0, 6, -Math.PI / 2, 'Fire Lookout', 0xbc6c25);
+    lookout(W, B, -36, 0, 6, Math.PI / 2, 'Fire Lookout', 0xbc6c25);
     for (let j = 0; j < 120; j++) { const x = (R() - 0.5) * 160, z = (R() - 0.5) * 160; const h = W.terrain(x, z); if ((Math.abs(x) < 40 && Math.abs(z) < 38) || h > 13 || Math.hypot(x + 38, z - 32) < 11) continue; addTree(B, x, h - 0.2, z, 0.9 + R() * 0.9, 'pine', j); }
     for (let j = 0; j < 14; j++) { const x = (R() - 0.5) * 70, z = (R() - 0.5) * 70; if (Math.abs(x) < 4 || Math.abs(z) < 4 || W.walls.some((w) => x > w.x0 - 3 && x < w.x1 + 3 && z > w.z0 - 3 && z < w.z1 + 3)) continue; addTree(B, x, W.terrain(x, z), z, 0.8, 'pine', j); }
     for (let j = 0; j < 18; j++) { const x = (R() - 0.5) * 150, z = (R() - 0.5) * 150; if (Math.abs(x) < 45 && Math.abs(z) < 40) continue; addRock(B, x, W.terrain(x, z), z, 1 + R() * 2, j, 0x9ca3af); }

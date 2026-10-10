@@ -96,7 +96,7 @@ export function resize() {
   if (!G.renderer) return;
   const w = innerWidth, h = innerHeight;
   G.renderer.setSize(w, h, false);
-  G.camera.aspect = w / h; G.camera.fov = w < h ? 62 : 52; G.camera.updateProjectionMatrix();
+  G.camera.aspect = w / h; G.baseFov = G.camera.fov = w < h ? 62 : 52; G.camera.updateProjectionMatrix();
   if (G.composer) { G.composer.setSize(w, h); }
 }
 

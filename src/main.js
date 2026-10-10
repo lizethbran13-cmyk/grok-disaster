@@ -74,7 +74,7 @@ function drawCoins() {
 let hiddenB = null; const camT = new THREE.Vector3(), camP = new THREE.Vector3();
 function updateCamera(dt) {
   const W = App.W, me = App.me;
-  if (App.cam) { G.camera.position.set(App.cam.x, App.cam.y, App.cam.z); G.camera.lookAt(App.cam.lx, App.cam.ly, App.cam.lz); G.focus.set(App.cam.lx, 0, App.cam.lz); if (me) { const b = buildingAt(W, me.x, me.y, me.z); if (b !== hiddenB) { if (hiddenB) hiddenB.upper.visible = !hiddenB.wrecked; if (b && App.cam.hide !== false) b.upper.visible = false; hiddenB = b; } } return; }
+  if (App.cam) { if (G.baseFov && G.camera.fov !== G.baseFov) { G.camera.fov = G.baseFov; G.camera.updateProjectionMatrix(); } G.camera.position.set(App.cam.x, App.cam.y, App.cam.z); G.camera.lookAt(App.cam.lx, App.cam.ly, App.cam.lz); G.focus.set(App.cam.lx, 0, App.cam.lz); if (me) { const b = buildingAt(W, me.x, me.y, me.z); if (b !== hiddenB) { if (hiddenB) hiddenB.upper.visible = !hiddenB.wrecked; if (b && App.cam.hide !== false) b.upper.visible = false; hiddenB = b; } } return; }
   if (App.mode === 'menu' || !me) {
     const a = G.t * 0.06; camP.set(Math.cos(a) * 52, 30, Math.sin(a) * 52); G.camera.position.lerp(camP, 0.05); G.camera.lookAt(0, 2, 0); G.focus.set(0, 0, 0);
     if (hiddenB) { hiddenB.upper.visible = !hiddenB.wrecked; hiddenB = null; } return;
@@ -96,8 +96,8 @@ function updateCamera(dt) {
     cl(camP);
     if (Math.hypot(camP.x - camT.x, camP.z - camT.z) < 3.5) { // too cramped for your angle: swing to the room's long axis, toward the far wall
       const lx = r.x1 - r.x0 >= r.z1 - r.z0, cx0 = (r.x0 + r.x1) / 2, cz0 = (r.z0 + r.z1) / 2;
-      if (lx) { camP.x = camT.x + (camT.x < cx0 ? 1 : -1) * 6.5; camP.z = camT.z + (camT.z < cz0 ? 1 : -1) * 1.5; } else { camP.z = camT.z + (camT.z < cz0 ? 1 : -1) * 6.5; camP.x = camT.x + (camT.x < cx0 ? 1 : -1) * 1.5; }
-      camP.y = UNDER + 5.8; cl(camP);
+      if (lx) { camP.x = camT.x + (camT.x < cx0 ? 1 : -1) * 7.5; camP.z = camT.z + (camT.z < cz0 ? 1 : -1) * 2.5; } else { camP.z = camT.z + (camT.z < cz0 ? 1 : -1) * 7.5; camP.x = camT.x + (camT.x < cx0 ? 1 : -1) * 2.5; }
+      camP.y = UNDER + 7.6; cl(camP);
     }
     camP.y = Math.max(UNDER + 2.2, Math.min(UNDER + 9.5, camP.y)); } }
   else if (b) { camP.x = Math.max(b.ix0 + 0.5, Math.min(b.ix1 - 0.5, camP.x)); camP.z = Math.max(b.iz0 + 0.5, Math.min(b.iz1 - 0.5, camP.z)); camP.y = Math.max(camP.y, me.y + 3.2); }
@@ -105,6 +105,7 @@ function updateCamera(dt) {
   if (!under && FX.water.visible && camP.y < FX.water.position.y + 1.2) camP.y = FX.water.position.y + 1.2;
   const sh = (S.env && S.env.shake) || 0; if (sh > 0) { camP.x += (Math.random() - 0.5) * sh * 0.6; camP.y += (Math.random() - 0.5) * sh * 0.5; camP.z += (Math.random() - 0.5) * sh * 0.6; }
   G.camera.position.lerp(camP, Math.min(1, dt * 14)); G.camera.lookAt(camT);
+  { const bf = G.baseFov || 62, tf = bf + (under ? 18 : b ? 8 : 0); if (Math.abs(G.camera.fov - tf) > 0.05) { G.camera.fov += (tf - G.camera.fov) * Math.min(1, dt * 6); G.camera.updateProjectionMatrix(); } }
   G.focus.set(me.x, under ? 0 : me.y, me.z);
 }
 /* ---------------- local player ---------------- */

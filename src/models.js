@@ -194,7 +194,12 @@ export function animSurvivor(P, st, dt, speed, t) {
 
 /* ---------------- scenery ---------------- */
 const greens = [0x4caf50, 0x5cbf4a, 0x3f9e44, 0x6cc24a];
+// static prop colliders/heights collected while a map is built (townsfolk avoid them, flood water foams around them)
+export const PROPS = [];
+export const prop = (x, z, r, top) => PROPS.push({ x, z, r, top });
 export function addTree(B, x, y, z, s = 1, kind = 'round', seed = 0) {
+  PROPS.push({ x, z, r: kind === 'cactus' ? 0.45 * s : 0.4 * s, top: y + (kind === 'pine' ? 3.6 : kind === 'palm' ? 4.2 : kind === 'cactus' ? 2.2 : 3.6) * s, tree: kind, s, y });
+  if (kind === 'round') PROPS.push({ x, z, r: 0, canopy: 1.5 * s, top: y + 3.9 * s });
   const trunk = M(0x8a5a35, { r: 0.85 });
   if (kind === 'round') {
     B.mesh(GEO.cyl(0.18, 0.28, 2.4, 10), trunk, x, y + 1.2 * s, z, 0, 0, 0, s, s, s);
@@ -218,8 +223,9 @@ export function addTree(B, x, y, z, s = 1, kind = 'round', seed = 0) {
     B.mesh(GEO.cap(0.2, 0.6, 12), c, x - 0.55 * s, y + 2.3 * s, z, 0, 0, 0, s, s, s); B.mesh(GEO.cap(0.18, 0.4, 12), c, x - 0.35 * s, y + 1.95 * s, z, 0, 0, Math.PI / 2, s, s, s);
   }
 }
-export function addRock(B, x, y, z, s = 1, seed = 1, color = 0x9a8f86) { B.mesh(GEO.rock(seed % 6, 1), M(color, { r: 0.9 }), x, y + 0.3 * s, z, 0, seed, 0, s, s, s); }
+export function addRock(B, x, y, z, s = 1, seed = 1, color = 0x9a8f86) { prop(x, z, 0.7 * s, y + 0.8 * s); B.mesh(GEO.rock(seed % 6, 1), M(color, { r: 0.9 }), x, y + 0.3 * s, z, 0, seed, 0, s, s, s); }
 export function addCar(B, x, y, z, ry, color) {
+  if (x || z) { const dx = Math.sin(ry), dz = Math.cos(ry); prop(x + dx * 1.1, z + dz * 1.1, 1.05, y + 1.6); prop(x - dx * 1.1, z - dz * 1.1, 1.05, y + 1.6); }
   const g = new THREE.Group(), body = M(color, { r: 0.3, cc: 1, ccr: 0.1, m: 0.2 }), glass = M(0x203040, { r: 0.05, m: 0.5, cc: 1 }), tire = M(0x1c1f24, { r: 0.85 }), hub = M(0xd6dbe0, { r: 0.2, m: 1 });
   const add = (geo, m, px, py, pz, rx = 0, rz = 0) => B.add(geo, m, new THREE.Matrix4().makeRotationY(ry).multiply(mat4(px, py, pz, rx, 0, rz)).premultiply(new THREE.Matrix4().makeTranslation(x, y, z)));
   add(GEO.rbox(1.9, 0.75, 4.1, 0.3), body, 0, 0.75, 0);
@@ -231,12 +237,14 @@ export function addCar(B, x, y, z, ry, color) {
   return g;
 }
 export function addLamp(B, x, y, z) {
+  prop(x, z, 0.2, y + 4.2);
   const pole = M(0x3d4450, { r: 0.4, m: 0.7 });
   B.mesh(GEO.cyl(0.07, 0.1, 4.2, 10), pole, x, y + 2.1, z);
   B.mesh(GEO.cap(0.06, 0.8, 8), pole, x + 0.4, y + 4.2, z, 0, 0, Math.PI / 2);
   B.mesh(GEO.sphere(0.22, 16, 10), M(0xfff3c4, { e: 0xffe9a0, ei: 1.5 }), x + 0.8, y + 4.05, z);
 }
 export function addBench(B, x, y, z, ry) {
+  prop(x, z, 0.9, y + 0.9);
   const w = M(0xb07a45, { r: 0.7 }), m = M(0x30343a, { r: 0.5, m: 0.6 });
   const T = (gx, gy, gz) => { const v = new THREE.Vector3(gx, gy, gz).applyAxisAngle(new THREE.Vector3(0, 1, 0), ry); return [x + v.x, y + v.y, z + v.z]; };
   [0.45, 0.65].forEach((dz, i) => { const p = T(0, 0.5 + i * 0.35, -0.2 + i * 0.25 - 0.1); B.add(GEO.rbox(1.8, 0.08, 0.28, 0.03), w, mat4(p[0], p[1], p[2], i ? -0.3 : 0, ry, 0)); });

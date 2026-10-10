@@ -1,6 +1,6 @@
 // the four survival maps
 import * as THREE from 'three';
-import { Batch, GEO, mat4, addTree, addRock, addCar, addLamp, addBench, mesh } from './models.js';
+import { Batch, GEO, mat4, addTree, addRock, addCar, addLamp, addBench, mesh, PROPS, prop } from './models.js';
 import { M, glow } from './mats.js';
 import { newWorld, addWall, addPlat } from './world.js';
 import { makeBuilding } from './build.js';
@@ -55,17 +55,18 @@ function fence(B, W, x0, z0, x1, z1, col = 0xffffff, solid) {
   B.add(GEO.box(0.06, 0.07, len), m, mat4((x0 + x1) / 2, 1.5, (z0 + z1) / 2, 0, ry, 0)); B.add(GEO.box(0.06, 0.07, len), m, mat4((x0 + x1) / 2, 0.8, (z0 + z1) / 2, 0, ry, 0));
   if (solid) addWall(W, x0 - 0.1, z0 - 0.1, x1 + 0.1, z1 + 0.1, -1, 1.7);
 }
-function waterTower(B, x, z, y = 0) { const leg = M(0xc1121f, { r: 0.5, m: 0.3 }); [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]].forEach((q) => B.mesh(GEO.cyl(0.15, 0.2, 9, 10), leg, x + q[0], y + 4.5, z + q[1])); B.mesh(GEO.cap(2.6, 2.2, 24), M(0xf8f9fa, { r: 0.35, m: 0.5 }), x, y + 11.5, z); B.mesh(GEO.cone(2.7, 1.4, 24), M(0xc1121f, { r: 0.4 }), x, y + 14.3, z); }
-function radar(B, x, z) { B.mesh(GEO.cyl(0.4, 0.6, 5, 16), M(0xadb5bd, { m: 0.8, r: 0.3 }), x, 2.5, z); B.add(new THREE.SphereGeometry(4, 32, 12, 0, 6.283, 0, 0.9), M(0xf1f5f9, { m: 0.6, r: 0.25, side: THREE.DoubleSide }), mat4(x, 6.5, z, -2.3, 0.6, 0)); B.mesh(GEO.sphere(0.4, 12, 8), M(0xef4444, { e: 0xef4444, ei: 1.5 }), x, 7.5, z); }
-function fountain(B, x, z) { B.mesh(GEO.cyl(3.4, 3.6, 0.7, 40), M(0xe9ecef, { r: 0.5 }), x, 0.35, z); B.mesh(GEO.cyl(3.0, 3.0, 0.1, 40), M(0x4cc9f0, { r: 0.05, cc: 1, e: 0x0077b6, ei: 0.25 }), x, 0.66, z); B.mesh(GEO.cyl(0.4, 0.6, 1.8, 20), M(0xe9ecef, { r: 0.5 }), x, 1.2, z); B.mesh(GEO.sphere(0.9, 20, 12), M(0x90e0ef, { r: 0.05, op: 0.6, cc: 1 }), x, 2.3, z); }
-function trafficLight(B, x, z, ry) { const p = M(0x2b2d42, { r: 0.4, m: 0.6 }); B.mesh(GEO.cyl(0.08, 0.1, 3.6, 8), p, x, 1.8, z); B.add(GEO.rbox(0.4, 1.1, 0.35, 0.08), p, mat4(x, 3.8, z, 0, ry, 0)); [0xef4444, 0xfacc15, 0x22c55e].forEach((c, i) => B.mesh(GEO.sphere(0.11, 12, 8), M(c, { e: c, ei: i === 2 ? 2 : 0.3 }), x + Math.sin(ry) * 0.18, 4.15 - i * 0.33, z + Math.cos(ry) * 0.18)); }
-function umbrella(B, x, z, col, y = 0) { B.mesh(GEO.cyl(0.05, 0.05, 2.4, 8), M(0xffffff), x, y + 1.2, z); B.add(new THREE.SphereGeometry(1.5, 16, 6, 0, 6.283, 0, Math.PI * 0.3), M(col, { r: 0.5, side: THREE.DoubleSide }), mat4(x, y + 1.95, z)); }
+function waterTower(B, x, z, y = 0) { prop(x, z, 3, 10); const leg = M(0xc1121f, { r: 0.5, m: 0.3 }); [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]].forEach((q) => B.mesh(GEO.cyl(0.15, 0.2, 9, 10), leg, x + q[0], y + 4.5, z + q[1])); B.mesh(GEO.cap(2.6, 2.2, 24), M(0xf8f9fa, { r: 0.35, m: 0.5 }), x, y + 11.5, z); B.mesh(GEO.cone(2.7, 1.4, 24), M(0xc1121f, { r: 0.4 }), x, y + 14.3, z); }
+function radar(B, x, z) { prop(x, z, 1.5, 5); B.mesh(GEO.cyl(0.4, 0.6, 5, 16), M(0xadb5bd, { m: 0.8, r: 0.3 }), x, 2.5, z); B.add(new THREE.SphereGeometry(4, 32, 12, 0, 6.283, 0, 0.9), M(0xf1f5f9, { m: 0.6, r: 0.25, side: THREE.DoubleSide }), mat4(x, 6.5, z, -2.3, 0.6, 0)); B.mesh(GEO.sphere(0.4, 12, 8), M(0xef4444, { e: 0xef4444, ei: 1.5 }), x, 7.5, z); }
+function fountain(B, x, z) { prop(x, z, 4.2, 1.2); B.mesh(GEO.cyl(3.4, 3.6, 0.7, 40), M(0xe9ecef, { r: 0.5 }), x, 0.35, z); B.mesh(GEO.cyl(3.0, 3.0, 0.1, 40), M(0x4cc9f0, { r: 0.05, cc: 1, e: 0x0077b6, ei: 0.25 }), x, 0.66, z); B.mesh(GEO.cyl(0.4, 0.6, 1.8, 20), M(0xe9ecef, { r: 0.5 }), x, 1.2, z); B.mesh(GEO.sphere(0.9, 20, 12), M(0x90e0ef, { r: 0.05, op: 0.6, cc: 1 }), x, 2.3, z); }
+function trafficLight(B, x, z, ry) { prop(x, z, 0.25, 5); const p = M(0x2b2d42, { r: 0.4, m: 0.6 }); B.mesh(GEO.cyl(0.08, 0.1, 3.6, 8), p, x, 1.8, z); B.add(GEO.rbox(0.4, 1.1, 0.35, 0.08), p, mat4(x, 3.8, z, 0, ry, 0)); [0xef4444, 0xfacc15, 0x22c55e].forEach((c, i) => B.mesh(GEO.sphere(0.11, 12, 8), M(c, { e: c, ei: i === 2 ? 2 : 0.3 }), x + Math.sin(ry) * 0.18, 4.15 - i * 0.33, z + Math.cos(ry) * 0.18)); }
+function umbrella(B, x, z, col, y = 0) { prop(x, z, 0.3, 2.6); B.mesh(GEO.cyl(0.05, 0.05, 2.4, 8), M(0xffffff), x, y + 1.2, z); B.add(new THREE.SphereGeometry(1.5, 16, 6, 0, 6.283, 0, Math.PI * 0.3), M(col, { r: 0.5, side: THREE.DoubleSide }), mat4(x, y + 1.95, z)); }
 function cloud(B, x, y, z, s) { const m = M(0xffffff, { r: 1, e: 0xffffff, ei: 0.35 }); [[0, 0, 0, 1.4], [1.4, -0.2, 0.2, 1.0], [-1.4, -0.2, -0.1, 1.05], [0.6, 0.6, -0.2, 0.95], [-0.5, 0.5, 0.3, 0.9]].forEach((p) => B.mesh(GEO.sphere(1, 18, 12), m, x + p[0] * s, y + p[1] * s, z + p[2] * s, 0, 0, 0, p[3] * s, p[3] * s * 0.8, p[3] * s)); }
 function spreadCoins(W, R, n, ok) { let tries = 0; while (W.coinSpots.length < n && tries++ < 4000) { const x = (R() - 0.5) * W.half * 1.8, z = (R() - 0.5) * W.half * 1.8; if (ok && !ok(x, z)) continue; if (W.walls.some((w) => x > w.x0 - 1 && x < w.x1 + 1 && z > w.z0 - 1 && z < w.z1 + 1)) continue; W.coinSpots.push({ x, z }); } }
 
 export function buildMap(id, scene) {
   const W = newWorld(); W.id = id; W.meta = MAPS.find((m) => m.id === id);
   const B = new Batch(), R = rng(id.length * 977 + id.charCodeAt(0));
+  PROPS.length = 0;
   const root = new THREE.Group(); scene.add(root); W.root = root;
   if (id === 'area51') {
     W.half = 75;
@@ -187,6 +188,7 @@ export function buildMap(id, scene) {
     for (let j = 0; j < 9; j++) cloud(B, (R() - 0.5) * 300, 48 + R() * 20, (R() - 0.5) * 300, 4 + R() * 3);
   }
   decorate(W, B, root, R, id);
+  W.props = PROPS.slice();
   B.build(root);
   spreadCoins(W, R, 46, (x, z) => W.terrain(x, z) > -1 && W.terrain(x, z) < 8);
   // a few coins inside buildings and down in basements (explore!)

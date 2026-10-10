@@ -53,7 +53,7 @@ export function initFX() {
       foam = max(foam, smoothstep(0.58, 0.72, vH + rip * 0.1) * 0.5);
       foam = max(foam, smoothstep(0.93, 0.99, rip * rip2 + 0.4) * 0.3);
       diffuseColor.rgb = mix(wc, vec3(1.0), clamp(foam, 0.0, 1.0));
-      diffuseColor.a = max(mix(0.62, 0.94, smoothstep(0.0, 2.5, dep)), foam);`);
+      diffuseColor.a = max(mix(0.5, 0.86, smoothstep(0.0, 6.0, dep)), foam);`);
   };
   FX.water = new THREE.Mesh(new THREE.PlaneGeometry(320, 320, 140, 140), FX.waterMat); FX.water.rotation.x = -Math.PI / 2; FX.water.visible = false; FX.water.receiveShadow = true; G.scene.add(FX.water);
   FX.foam = new THREE.Mesh(new THREE.PlaneGeometry(320, 6, 60, 1), M(0xffffff, { r: 0.6, op: 0.85, e: 0xffffff, ei: 0.3 })); FX.foam.rotation.x = -Math.PI / 2; FX.foam.visible = false; G.scene.add(FX.foam);
@@ -210,8 +210,30 @@ export function bakeWaterHeight(W) {
     const i0 = Math.floor((w.x0 + E / 2) / E * N), i1 = Math.ceil((w.x1 + E / 2) / E * N), j0 = Math.floor((w.z0 + E / 2) / E * N), j1 = Math.ceil((w.z1 + E / 2) / E * N);
     for (let j = Math.max(0, j0); j < Math.min(N, j1); j++) for (let i = Math.max(0, i0); i < Math.min(N, i1); i++) h[j * N + i] = Math.max(h[j * N + i], Math.min(44, w.y1));
   }
+  // props + tree trunks/canopies: water foams around them so flooded trees read as trees, not blobs
+  for (const q of (W.props || [])) {
+    const rad = q.canopy || q.r; if (!rad || q.top == null) continue;
+    const i0 = Math.floor((q.x - rad + E / 2) / E * N), i1 = Math.ceil((q.x + rad + E / 2) / E * N), j0 = Math.floor((q.z - rad + E / 2) / E * N), j1 = Math.ceil((q.z + rad + E / 2) / E * N);
+    for (let j = Math.max(0, j0); j < Math.min(N, j1); j++) for (let i = Math.max(0, i0); i < Math.min(N, i1); i++) { const x = (i + 0.5) / N * E - E / 2, z = (j + 0.5) / N * E - E / 2, d = Math.hypot(x - q.x, z - q.z); if (d > rad + 0.6) continue; const tt = q.canopy ? q.top - 1.6 * Math.pow(Math.min(1, d / rad), 2) : q.top; h[j * N + i] = Math.max(h[j * N + i], Math.min(44, tt)); }
+  }
   for (let k = 0; k < N * N; k++) { const v = Math.max(0, Math.min(255, Math.round((h[k] + 15) / 60 * 255))); d[k * 4] = v; d[k * 4 + 1] = v; d[k * 4 + 2] = v; d[k * 4 + 3] = 255; }
+  FX.trees = (W.props || []).filter((q) => q.tree);
+  if (!FX.treeFoam) { const g = new THREE.TorusGeometry(1, 0.16, 6, 28); g.rotateX(Math.PI / 2); FX.treeFoam = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.6, transparent: true, opacity: 0.9 }), 400); FX.treeFoam.frustumCulled = false; FX.treeFoam.count = 0; G.scene.add(FX.treeFoam); }
   FX.htTex.dispose();
   FX.htTex = new THREE.DataTexture(d, N, N); FX.htTex.magFilter = THREE.LinearFilter; FX.htTex.minFilter = THREE.LinearFilter; FX.htTex.needsUpdate = true;
   if (FX.waterMat.userData.sh) FX.waterMat.userData.sh.uniforms.uHt.value = FX.htTex;
+}
+
+// white foam collars where flood water meets tree trunks / canopies, so flooded trees read as trees
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3();
+export function updateTreeFoam(on, wy, t) {
+  const F = FX.treeFoam; if (!F) return; let n = 0;
+  if (on) for (const q of FX.trees || []) {
+    if (n >= 400) break; if (q.y > wy - 0.15 || q.top < wy + 0.1) continue;
+    const ch = wy - q.y; // depth at this tree
+    let r = 0.55 * q.s; if (q.tree === 'round' && ch > 1.6 * q.s) r = 1.45 * q.s * Math.min(1, (ch - 1.4 * q.s) / (0.9 * q.s) + 0.55); else if (q.tree === 'pine' && ch > 1.0 * q.s) r = Math.max(0.5, 1.6 * q.s * (1 - (ch - 1.0 * q.s) / (2.6 * q.s)));
+    r *= 1 + Math.sin(t * 2.2 + q.x) * 0.06;
+    _v.set(q.x, wy + 0.06, q.z); _s.set(r, 1, r); _m4.compose(_v, _q, _s); F.setMatrixAt(n++, _m4);
+  }
+  F.count = n; F.visible = n > 0; F.instanceMatrix.needsUpdate = true;
 }

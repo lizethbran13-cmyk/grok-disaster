@@ -94,6 +94,7 @@ export function makeBuilding(W, scene, o) {
   pbox(U, M(0xf4f1ea, { r: 0.9 }), lw, 0.25, ld, 0, H + 0.12, 0);
   if (b.h > H + 0.5) pbox(U, M(0xd5dbe2, { r: 0.85 }), lw, 0.3, ld, 0, b.h + 0.12, 0);
   const top = b.h + 0.27;
+  if (b.roofType !== 'gable' && b.roofType !== 'arch') pbox(U, M(b.roof, { r: 0.8 }), lw - 0.2, 0.04, ld - 0.2, 0, top + 0.01, 0); // coloured roof deck (no more pale slab on top)
   if (b.roofType === 'gable') {
     const span = Math.min(lw, ld) + 0.8, along = Math.max(lw, ld) + 0.8, rh = span * 0.38;
     const sh = new THREE.Shape(); sh.moveTo(-span / 2, 0); sh.lineTo(span / 2, 0); sh.lineTo(0, rh); sh.lineTo(-span / 2, 0);

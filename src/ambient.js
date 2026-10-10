@@ -9,7 +9,7 @@ const A = { npcs: [], cars: [], birds: [], root: null };
 const LANES = {
   area51: [{ ax: 'z', c: -1.8, d: 1, a: -48, b: 44 }, { ax: 'x', c: 1.8, d: -1, a: -48, b: 48 }],
   city: [-30, 0, 30].flatMap((v, i) => [{ ax: 'z', c: v - 2.2, d: -1, a: -73, b: 73, o: i * 40 }, { ax: 'x', c: v + 2.2, d: -1, a: -73, b: 73, o: i * 25 + 12 }]),
-  beach: [{ ax: 'x', c: 6, d: 1, a: -73, b: 73 }, { ax: 'x', c: 6, d: 1, a: -73, b: 73, o: 70 }, { ax: 'z', c: -1.6, d: -1, a: -72, b: 3 }],
+  beach: [{ ax: 'x', c: 6, d: 1, a: -73, b: 73 }, { ax: 'x', c: 6, d: 1, a: -73, b: 73, o: 70 }, { ax: 'z', c: 1.6, d: -1, a: -72, b: 3 }],
   pine: [{ ax: 'x', c: 1.4, d: 1, a: -48, b: 48 }, { ax: 'z', c: -1.4, d: -1, a: -42, b: 42, o: 30 }]
 };
 const LOOKS = [[0xff595e, 0x1e3a8a, 'cap'], [0x8ac926, 0x3f3f46, 'beanie'], [0xffca3a, 0x065f46, 'none'], [0x6a4c93, 0x7c2d12, 'party'], [0x4cc9f0, 0x334155, 'cowboy'], [0xf72585, 0x1e3a8a, 'none'], [0xff924c, 0x3f3f46, 'chef'], [0x06d6a0, 0x7c2d12, 'cap']];
@@ -68,6 +68,7 @@ export function updateAmbient(dt, W, S, people, t, cam) {
     if (sp && n.st !== 'flee') for (const p of people) if (Math.hypot(p.x - n.x, p.z - n.z) < 1.2) sp = 0;
     if (sp && d > 0.01) {
       const ox = n.x, oz = n.z; n.x += dx / d * sp * dt; n.z += dz / d * sp * dt; collide(W, n);
+      if (W.props) for (const q of W.props) { if (!q.r) continue; const ex = n.x - q.x, ez = n.z - q.z, rr = q.r + 0.35; if (Math.abs(ex) < rr && Math.abs(ez) < rr) { const dd = Math.hypot(ex, ez); if (dd < rr) { const k = dd > 1e-3 ? rr / dd : 1; n.x = q.x + (dd > 1e-3 ? ex : rr) * (dd > 1e-3 ? k : 1); n.z = q.z + (dd > 1e-3 ? ez * k : 0); } } }
       const moved = Math.hypot(n.x - ox, n.z - oz); if (moved < sp * dt * 0.3) { n.stuck += dt; if (n.stuck > 1.5) { n.stuck = 0; if (n.st === 'flee') { n.hid = true; n.P.root.visible = false; continue; } n.tx = n.x + (Math.random() - 0.5) * 12; n.tz = n.z + (Math.random() - 0.5) * 12; } } else n.stuck = Math.max(0, n.stuck - dt);
       const ty = Math.atan2(dx, dz); let dy = ty - n.yaw; while (dy > Math.PI) dy -= 6.283; while (dy < -Math.PI) dy += 6.283; n.yaw += dy * Math.min(1, dt * 8);
     }

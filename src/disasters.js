@@ -1,7 +1,7 @@
 // disaster definitions: host logic (tick/impact), safety rules, bot targets, and visuals (all clients)
 import * as THREE from 'three';
 import { G } from './gfx.js';
-import { FX, ring, line, puff, debris, sparks, bolt, faller, shockwave } from './fx.js';
+import { FX, ring, line, puff, debris, sparks, bolt, faller, shockwave, updateTreeFoam } from './fx.js';
 import { makeKaiju, animKaiju, makeUFO, GEO } from './models.js';
 import { M, glow } from './mats.js';
 import { groundAt, buildingAt, tableAt, nearestBuildingDist, UNDER, onRoof } from './world.js';
@@ -273,6 +273,7 @@ export function drawDisaster(S, W, dt) {
     V.float.forEach((g, i) => { const u = g.userData; u.a += u.s * dt; g.visible = e.water > 0.8; g.position.set(Math.cos(u.a) * u.r, FX.water.position.y + Math.sin(G.t * 2 + i) * 0.15, Math.sin(u.a) * u.r * 1.4); g.rotation.y = u.a * 3 + i; g.rotation.z = Math.sin(G.t * 1.5 + i) * 0.15; });
   } else if (W.sea != null) { FX.water.visible = true; FX.water.position.y = W.sea; FX.foam.visible = false; FX.wave.visible = false; }
   else { FX.water.visible = false; FX.foam.visible = false; FX.wave.visible = false; }
+  updateTreeFoam(FX.water.visible && e.water != null && e.water > (W.sea != null ? W.sea + 0.5 : 0.3), FX.water.position.y, G.t);
   if (V.float && !(e.water != null && S.dz === 'flood' && (S.phase === 'active' || S.phase === 'calm') && e.water > 0.8)) V.float.forEach((g) => g.visible = false);
   // volcano + lava
   if (e.lava && S.dz === 'volcano' && S.phase === 'active') {

@@ -4,6 +4,7 @@ import { Batch, GEO, mat4, addTree, addRock, addCar, addLamp, addBench, mesh } f
 import { M, glow } from './mats.js';
 import { newWorld, addWall, addPlat } from './world.js';
 import { makeBuilding } from './build.js';
+import { decorate } from './deco.js';
 
 export const MAPS = [
   { id: 'area51', name: 'Area 51', emoji: '👽', desc: 'Secret desert base with hangars, a control tower and a NUCLEAR BUNKER deep underground.', mood: 'desert' },
@@ -17,7 +18,7 @@ function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 10139
 function groundMesh(W, scene, colorAt, size = 300, seg = 150) {
   const g = new THREE.PlaneGeometry(size, size, seg, seg); g.rotateX(-Math.PI / 2);
   const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
-  for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), h = W.terrain(x, z); p.setY(i, h); c.setHex(colorAt(x, z, h)); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), h = W.terrain(x, z); p.setY(i, h); c.setHex(colorAt(x, z, h)); { const n = Math.sin(x * 0.13 + Math.sin(z * 0.09) * 2) * Math.cos(z * 0.11 + Math.sin(x * 0.07) * 2), n2 = Math.sin(x * 1.7 + z * 0.3) * Math.sin(z * 1.9 - x * 0.4); c.offsetHSL(n * 0.015, n * 0.05, n * 0.07 + n2 * 0.025); } col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
   const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 })); m.receiveShadow = true; scene.add(m); return m;
 }
@@ -185,6 +186,7 @@ export function buildMap(id, scene) {
     W.volcano = { x: 64, z: -66, y: mtn(64, -66), real: true }; W.spawns = [[3, 3], [-3, 3], [3, -3], [-3, -3]];
     for (let j = 0; j < 9; j++) cloud(B, (R() - 0.5) * 300, 48 + R() * 20, (R() - 0.5) * 300, 4 + R() * 3);
   }
+  decorate(W, B, root, R, id);
   B.build(root);
   spreadCoins(W, R, 46, (x, z) => W.terrain(x, z) > -1 && W.terrain(x, z) < 8);
   // a few coins inside buildings and down in basements (explore!)

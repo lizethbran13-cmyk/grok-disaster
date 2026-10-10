@@ -3,10 +3,11 @@ import * as THREE from 'three';
 import { G, initGfx, render, setMood, setQuality } from './gfx.js';
 import { buildMap, MAPS } from './maps.js';
 import { makeSurvivor, animSurvivor, setHat, setJetpack } from './models.js';
-import { initFX, updateFX, beginTele, endTele, clearFX, FX, puff } from './fx.js';
+import { setupAmbient, updateAmbient, clearAmbient } from './ambient.js';
+import { initFX, updateFX, beginTele, endTele, clearFX, FX, puff, bakeWaterHeight } from './fx.js';
 import { DZ, ORDER, shelter, drawDisaster, playFx, resetVisuals, dzName } from './disasters.js';
 import { S, H, startRound, hostTick, movePlayer, usePad, nearestSafe, pickNext, maxHp, newPlayer, msg } from './sim.js';
-import { padAt, UNDER, buildingAt, groundAt } from './world.js';
+import { padAt, UNDER, buildingAt, groundAt, roomAt } from './world.js';
 import { wreckBuilding, repairBuilding } from './build.js';
 import { I, initInput, readMove } from './input.js';
 import { initAudio, SFX, setSound, ambience } from './audio.js';
@@ -31,7 +32,7 @@ function loadMap(id) {
   App.models.forEach((m) => G.scene.remove(m.root)); App.models.clear();
   resetVisuals(); clearFX();
   const W = buildMap(id, G.scene); App.W = W; H.W = W; H.scene = W.root;
-  setMood(W.meta.mood, true);
+  setMood(W.meta.mood, true); bakeWaterHeight(W); setupAmbient(W, G.scene, G.quality === 'low');
   return W;
 }
 /* ---------------- survivors ---------------- */
@@ -82,13 +83,16 @@ function updateCamera(dt) {
   if (b !== hiddenB) { if (hiddenB) hiddenB.upper.visible = !hiddenB.wrecked; if (b) b.upper.visible = false; hiddenB = b; }
   let dist = I.dist, pitch = I.pitch;
   if (b) { dist = Math.min(dist, 8); pitch = Math.max(pitch, 0.95); }
-  if (under) { dist = Math.min(dist, 7); pitch = Math.max(pitch, 0.8); }
+  if (under) { dist = Math.max(7.5, Math.min(dist, 9)); pitch = Math.min(0.85, Math.max(pitch, 0.6)); }
   camT.set(me.x, me.y + 1.4, me.z);
   const cx = Math.sin(I.yaw) * Math.cos(pitch), cy = Math.sin(pitch), cz = Math.cos(I.yaw) * Math.cos(pitch);
   // pull in if a building is between camera and player
   if (!b && !under) for (let d = 1.5; d < dist; d += 0.6) { const x = camT.x + cx * d, y = camT.y + cy * d, z = camT.z + cz * d; const hit = W.buildings.some((q) => !q.wrecked && x > q.x - q.w / 2 - 0.2 && x < q.x + q.w / 2 + 0.2 && z > q.z - q.d / 2 - 0.2 && z < q.z + q.d / 2 + 0.2 && y < q.baseY + q.h + 0.6 && y > q.baseY - 0.5); if (hit) { dist = Math.max(2.2, d - 0.6); break; } }
-  if (under) dist = Math.min(dist, (UNDER + 5.6 - camT.y) / Math.max(0.2, cy));
+  if (under) dist = Math.min(dist, (UNDER + 9.5 - camT.y) / Math.max(0.2, cy));
   camP.set(camT.x + cx * dist, camT.y + cy * dist, camT.z + cz * dist);
+  // interiors: keep the camera INSIDE the room / building footprint (dollhouse cutaway, roof + upper floors hidden)
+  if (under) { const r = roomAt(W, me.x, me.z); if (r) { camP.x = Math.max(r.x0 + 0.7, Math.min(r.x1 - 0.7, camP.x)); camP.z = Math.max(r.z0 + 0.7, Math.min(r.z1 - 0.7, camP.z)); camP.y = Math.max(UNDER + 2.2, Math.min(UNDER + 9.5, camP.y)); } }
+  else if (b) { camP.x = Math.max(b.ix0 + 0.5, Math.min(b.ix1 - 0.5, camP.x)); camP.z = Math.max(b.iz0 + 0.5, Math.min(b.iz1 - 0.5, camP.z)); camP.y = Math.max(camP.y, me.y + 3.2); }
   const tg = groundAt(W, camP.x, camP.z, camP.y + 2); if (!under && camP.y < tg + 0.6) camP.y = tg + 0.6;
   if (!under && FX.water.visible && camP.y < FX.water.position.y + 1.2) camP.y = FX.water.position.y + 1.2;
   const sh = (S.env && S.env.shake) || 0; if (sh > 0) { camP.x += (Math.random() - 0.5) * sh * 0.6; camP.y += (Math.random() - 0.5) * sh * 0.5; camP.z += (Math.random() - 0.5) * sh * 0.6; }
@@ -199,6 +203,7 @@ function step(dt) {
     beginTele(); drawDisaster(S, W, dt); endTele();
     updateFX(dt, App.me ? { x: App.me.x, y: Math.max(App.me.y, 0), z: App.me.z } : { x: 0, y: 0, z: 0 }, weatherNow());
     drawSurvivors(dt); drawCoins();
+    updateAmbient(dt, W, S, S.players, G.t, G.camera); if (W.detail) W.detail.visible = G.quality === 'high';
   }
   updateCamera(dt);
   cullDetail();

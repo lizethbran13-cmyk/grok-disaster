@@ -235,6 +235,9 @@ function makeRoom(W, scene, b, B, put, F, kind) {
   R.box(wm, 0.3, wh, dd, room.x0 - 0.15, Y + wh / 2, b.z); R.box(wm, 0.3, wh, dd, room.x1 + 0.15, Y + wh / 2, b.z);
   addWall(W, room.x0 - 0.3, room.z0 - 0.3, room.x1 + 0.3, room.z0, Y, Y + 6); addWall(W, room.x0 - 0.3, room.z1, room.x1 + 0.3, room.z1 + 0.3, Y, Y + 6);
   addWall(W, room.x0 - 0.3, room.z0, room.x0, room.z1, Y, Y + 6); addWall(W, room.x1, room.z0, room.x1 + 0.3, room.z1, Y, Y + 6);
+  // floor tiles + hazard border (so the room reads clearly from the camera)
+  { const t1 = M(kind === 'bunker' ? 0x7b8794 : kind === 'mine' ? 0x7a5646 : kind === 'subway' ? 0xcbd5e1 : 0xa3b1c2, { r: 0.7 }); for (let ix = 0; ix < Math.floor(ww / 1.5); ix++) for (let iz = 0; iz < Math.floor(dd / 1.5); iz++) if ((ix + iz) % 2 === 0) R.box(t1, 1.48, 0.02, 1.48, room.x0 + 0.75 + ix * 1.5, Y + 0.01, room.z0 + 0.75 + iz * 1.5); }
+  if (kind === 'bunker') { for (let k = 0; k < Math.floor(ww / 0.8); k++) { R.box(M(k % 2 ? 0x111827 : 0xfacc15, { r: 0.6 }), 0.8, 0.03, 0.35, room.x0 + 0.4 + k * 0.8, Y + 0.02, room.z0 + 2.8); } const cx = b.x - 1.5, cz = b.z + 1; R.mesh(GEO.cyl(1.4, 1.4, 0.03, 32), M(0xfacc15, { r: 0.5 }), cx, Y + 0.03, cz); R.mesh(GEO.cyl(0.25, 0.25, 0.04, 16), M(0x111827), cx, Y + 0.04, cz); for (let k = 0; k < 3; k++) { const a = k * 2.094 + 0.52; R.add(new THREE.CircleGeometry(1.25, 12, a - 0.5, 1.0).rotateX(-Math.PI / 2), M(0x111827, { r: 0.6 }), mat4(cx, Y + 0.07, cz)); } }
   // stripes, lamps, props
   const lampM = M(0xfff1c1, { e: 0xffe08a, ei: 2.2 });
   for (let i = 0; i < 3; i++) R.mesh(GEO.sphere(0.25, 14, 10), lampM, room.x0 + ww * (i + 0.5) / 3, Y + 3.2, room.z0 + 0.2);

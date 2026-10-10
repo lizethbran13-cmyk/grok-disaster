@@ -31,19 +31,45 @@ export function initFX() {
   FX.rings = []; FX.ringGeo = new THREE.RingGeometry(0.86, 1, 64); FX.discGeo = new THREE.CircleGeometry(1, 64);
   FX.lines = []; FX.bolts = []; FX.waves = []; FX.meteors = []; FX.trails = [];
   // flood water
-  FX.waterMat = new THREE.MeshStandardMaterial({ color: 0x19c3ff, roughness: 0.08, metalness: 0.05, transparent: true, opacity: 0.82, emissive: 0x0a5f9e, emissiveIntensity: 0.25 });
+  FX.waterMat = new THREE.MeshStandardMaterial({ color: 0x19c3ff, roughness: 0.06, metalness: 0.08, transparent: true, opacity: 0.9, emissive: 0x0a4f7e, emissiveIntensity: 0.18 });
+  // height texture (terrain + walls) lets the water know how deep it is: turquoise shallows, deep blue, shore foam rings
+  FX.htTex = new THREE.DataTexture(new Uint8Array(4 * 4 * 4), 4, 4); FX.htTex.needsUpdate = true;
   FX.waterMat.onBeforeCompile = (sh) => {
-    sh.uniforms.uT = { value: 0 }; FX.waterMat.userData.sh = sh;
-    sh.vertexShader = 'uniform float uT;\nvarying float vH;\nvarying vec2 vXY;\n' + sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
-      float w1 = sin(position.x*0.18 + uT*1.6)*0.35 + cos(position.y*0.22 + uT*1.3)*0.3 + sin((position.x+position.y)*0.5+uT*2.6)*0.08;
-      transformed.z += w1; vH = w1; vXY = position.xy;`).replace('#include <beginnormal_vertex>', `vec3 objectNormal = normalize(vec3(-cos(position.x*0.18+uT*1.6)*0.063, sin(position.y*0.22+uT*1.3)*0.066, 1.0));`);
-    sh.fragmentShader = 'uniform float uT;\nvarying float vH;\nvarying vec2 vXY;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float rip = sin(vXY.x*1.3 + uT*2.0 + sin(vXY.y*0.9)) * sin(vXY.y*1.1 - uT*1.7 + sin(vXY.x*0.7));
-      diffuseColor.rgb = mix(diffuseColor.rgb * 0.82, diffuseColor.rgb, smoothstep(-0.5, 0.4, vH));
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), smoothstep(0.42, 0.62, vH + rip * 0.12) * 0.75 + smoothstep(0.86, 0.98, rip) * 0.35);`);
+    sh.uniforms.uT = { value: 0 }; sh.uniforms.uHt = { value: FX.htTex }; FX.waterMat.userData.sh = sh;
+    sh.vertexShader = 'uniform float uT;\nvarying float vH;\nvarying vec3 vW;\n' + sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
+      float w1 = sin(position.x*0.18 + uT*1.6)*0.35 + cos(position.y*0.22 + uT*1.3)*0.3 + sin((position.x+position.y)*0.5+uT*2.6)*0.1 + sin(position.x*0.9 - position.y*0.7 + uT*3.1)*0.05;
+      transformed.z += w1; vH = w1; vW = (modelMatrix * vec4(transformed, 1.0)).xyz;`).replace('#include <beginnormal_vertex>', `vec3 objectNormal = normalize(vec3(-cos(position.x*0.18+uT*1.6)*0.063 - cos((position.x+position.y)*0.5+uT*2.6)*0.05, sin(position.y*0.22+uT*1.3)*0.066 - cos((position.x+position.y)*0.5+uT*2.6)*0.05, 1.0));`);
+    sh.fragmentShader = 'uniform float uT;\nuniform sampler2D uHt;\nvarying float vH;\nvarying vec3 vW;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float th = texture2D(uHt, vW.xz / 320.0 + 0.5).r * 60.0 - 15.0;
+      float dep = vW.y - th;
+      float rip = sin(vW.x*1.3 + uT*2.0 + sin(vW.z*0.9)) * sin(vW.z*1.1 - uT*1.7 + sin(vW.x*0.7));
+      float rip2 = sin(vW.x*2.7 - uT*2.4 + sin(vW.z*1.9 + uT)) * sin(vW.z*2.3 + uT*2.1);
+      vec3 wc = mix(vec3(0.10, 0.82, 0.86), vec3(0.0, 0.38, 0.86), smoothstep(0.2, 4.0, dep));
+      wc = mix(wc, vec3(0.02, 0.30, 0.70), smoothstep(6.0, 14.0, dep));
+      wc *= mix(0.86, 1.1, smoothstep(-0.5, 0.5, vH));
+      float shore = 1.0 - smoothstep(0.05, 0.45 + 0.25 * rip, dep);
+      float foam = shore * (0.75 + 0.25 * rip2);
+      foam = max(foam, (1.0 - smoothstep(0.9, 1.4 + 0.3 * rip2, dep)) * smoothstep(0.2, 0.8, rip2) * 0.7);
+      foam = max(foam, smoothstep(0.58, 0.72, vH + rip * 0.1) * 0.5);
+      foam = max(foam, smoothstep(0.93, 0.99, rip * rip2 + 0.4) * 0.3);
+      diffuseColor.rgb = mix(wc, vec3(1.0), clamp(foam, 0.0, 1.0));
+      diffuseColor.a = max(mix(0.62, 0.94, smoothstep(0.0, 2.5, dep)), foam);`);
   };
-  FX.water = new THREE.Mesh(new THREE.PlaneGeometry(320, 320, 120, 120), FX.waterMat); FX.water.rotation.x = -Math.PI / 2; FX.water.visible = false; FX.water.receiveShadow = true; G.scene.add(FX.water);
+  FX.water = new THREE.Mesh(new THREE.PlaneGeometry(320, 320, 140, 140), FX.waterMat); FX.water.rotation.x = -Math.PI / 2; FX.water.visible = false; FX.water.receiveShadow = true; G.scene.add(FX.water);
   FX.foam = new THREE.Mesh(new THREE.PlaneGeometry(320, 6, 60, 1), M(0xffffff, { r: 0.6, op: 0.85, e: 0xffffff, ei: 0.3 })); FX.foam.rotation.x = -Math.PI / 2; FX.foam.visible = false; G.scene.add(FX.foam);
+  // tsunami: a real curling wave wall (extruded curl profile), foam-white crest via vertex colours
+  {
+    const sp = new THREE.Shape(); const P = [[9, 0], [5, 0.35], [2.6, 0.72], [1, 0.95], [0, 1.0], [-1.1, 0.96], [-1.9, 0.82], [-2.2, 0.66], [-1.8, 0.56], [-1.2, 0.62], [-0.7, 0.5], [-0.6, 0.25], [-1.2, 0]];
+    sp.moveTo(P[0][0], P[0][1]); P.slice(1).forEach((q) => sp.lineTo(q[0], q[1]));
+    const g = new THREE.ExtrudeGeometry(sp, { depth: 1, bevelEnabled: false, curveSegments: 1, steps: 60 });
+    g.translate(0, 0, -0.5); g.rotateY(-Math.PI / 2); g.scale(170, 1, 1);
+    { const ps = g.attributes.position; for (let i = 0; i < ps.count; i++) { const x = ps.getX(i), y = ps.getY(i); ps.setZ(i, ps.getZ(i) + Math.sin(x * 0.07) * 2.5 + Math.sin(x * 0.19 + 1) * 0.8); ps.setY(i, y * (1 + 0.14 * Math.sin(x * 0.11 + 2))); } }
+    const pos = g.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color(), lo = new THREE.Color(0x0057c2), hi = new THREE.Color(0x12b5e8), wh = new THREE.Color(0xffffff);
+    for (let i = 0; i < pos.count; i++) { const y = pos.getY(i) / (1 + 0.14 * Math.sin(pos.getX(i) * 0.11 + 2)), z = pos.getZ(i); c.copy(lo).lerp(hi, Math.min(1, y * 1.15)); if (y > 0.96) c.lerp(wh, 0.85); else if (y > 0.88) c.lerp(wh, 0.3); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
+    FX.wave = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0.05, transparent: true, opacity: 0.93, emissive: 0x003a8c, emissiveIntensity: 0.35, side: THREE.DoubleSide, fog: false }));
+    FX.wave.visible = false; G.scene.add(FX.wave);
+  }
   // lava pool
   FX.lavaMat = new THREE.MeshStandardMaterial({ color: 0xff5a00, emissive: 0xff3c00, emissiveIntensity: 1.6, roughness: 0.4 });
   FX.lavaMat.onBeforeCompile = (sh) => { sh.uniforms.uT = { value: 0 }; FX.lavaMat.userData.sh = sh; sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWp;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWp = (modelMatrix*vec4(transformed,1.0)).xyz;'); sh.fragmentShader = 'uniform float uT;\nvarying vec3 vWp;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\nfloat n = sin(vWp.x*0.7+uT)*sin(vWp.z*0.6-uT*0.8)+sin((vWp.x-vWp.z)*0.35+uT*1.7)*0.6; totalEmissiveRadiance *= 0.55 + 0.45*smoothstep(-0.6,1.2,n); diffuseColor.rgb = mix(vec3(0.25,0.05,0.02), diffuseColor.rgb, smoothstep(-0.9,0.2,n));'); };
@@ -172,3 +198,20 @@ export function updateFX(dt, focus, weather) {
   // coins spin handled by sim visuals
 }
 export function clearFX() { FX.puffs.clear(); FX.fire.clear(); FX.debris.clear(); FX.sparks.clear(); FX.hail.clear(); clearFallers(); FX.rings.forEach((r) => { r.used = false; r.g.visible = false; }); FX.lines.forEach((l) => { l.used = false; l.m.visible = false; }); }
+
+// bake terrain + wall heights into the water's depth texture (called once per map load)
+export function bakeWaterHeight(W) {
+  const N = 256, E = 320, d = new Uint8Array(N * N * 4), h = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const x = (i + 0.5) / N * E - E / 2, z = (j + 0.5) / N * E - E / 2; h[j * N + i] = W.terrain(x, z); }
+  const lim = W.half + 1;
+  for (const w of W.walls) {
+    if (w.y1 < -5 || w.y0 < -20 || Math.abs(w.x0) > lim + 2 && Math.abs(w.x1) > lim + 2 || Math.abs(w.z0) > lim + 2 && Math.abs(w.z1) > lim + 2) continue;
+    if (w.x1 - w.x0 > 60 || w.z1 - w.z0 > 60) continue;
+    const i0 = Math.floor((w.x0 + E / 2) / E * N), i1 = Math.ceil((w.x1 + E / 2) / E * N), j0 = Math.floor((w.z0 + E / 2) / E * N), j1 = Math.ceil((w.z1 + E / 2) / E * N);
+    for (let j = Math.max(0, j0); j < Math.min(N, j1); j++) for (let i = Math.max(0, i0); i < Math.min(N, i1); i++) h[j * N + i] = Math.max(h[j * N + i], Math.min(44, w.y1));
+  }
+  for (let k = 0; k < N * N; k++) { const v = Math.max(0, Math.min(255, Math.round((h[k] + 15) / 60 * 255))); d[k * 4] = v; d[k * 4 + 1] = v; d[k * 4 + 2] = v; d[k * 4 + 3] = 255; }
+  FX.htTex.dispose();
+  FX.htTex = new THREE.DataTexture(d, N, N); FX.htTex.magFilter = THREE.LinearFilter; FX.htTex.minFilter = THREE.LinearFilter; FX.htTex.needsUpdate = true;
+  if (FX.waterMat.userData.sh) FX.waterMat.userData.sh.uniforms.uHt.value = FX.htTex;
+}

@@ -228,7 +228,7 @@ const V = { kaiju: null, ufos: [], tors: [], volc: null, cracks: [], torDebris: 
 export function resetVisuals() {
   if (V.kaiju) V.kaiju.root.visible = false; V.ufos.forEach((u) => u.visible = false); V.tors.forEach((t) => t.visible = false);
   if (V.volc) V.volc.visible = false; V.cracks.forEach((c) => G.scene.remove(c)); V.cracks = [];
-  FX.water.visible = false; FX.foam.visible = false; FX.lava.visible = false;
+  FX.water.visible = false; FX.foam.visible = false; FX.wave.visible = false; FX.lava.visible = false;
 }
 export function drawDisaster(S, W, dt) {
   const e = S.env, on = S.phase === 'active' || S.phase === 'warn';
@@ -267,12 +267,12 @@ export function drawDisaster(S, W, dt) {
   // water
   if (e.water != null && S.dz === 'flood' && (S.phase === 'active' || S.phase === 'calm') && e.water > (e.waterBase || -1) + 0.02) {
     FX.water.visible = true; FX.water.position.y += (e.water - FX.water.position.y) * Math.min(1, dt * 4);
-    if (e.waveZ != null) { FX.foam.visible = true; FX.foam.position.set(0, e.waterTarget + 0.4, e.waveZ); FX.foam.scale.y = 1; if (Math.random() < 0.8) puff((Math.random() - 0.5) * 140, e.waterTarget, e.waveZ, 2, 0xffffff, { sp: 2, up: 5, s: 1, s1: 2.5 }); } else FX.foam.visible = false;
+    if (e.waveZ != null) { FX.foam.visible = false; FX.wave.visible = true; const wb = Math.min(FX.water.position.y, e.waterBase != null ? e.waterBase : 0) - 0.4; FX.wave.position.set(0, wb, e.waveZ); FX.wave.scale.y = Math.max(2, e.waterTarget + 1.8 - wb) * (1 + Math.sin(G.t * 3) * 0.03); for (let k = 0; k < 2; k++) if (Math.random() < 0.7) puff((Math.random() - 0.5) * 150, wb + FX.wave.scale.y * 0.97, e.waveZ - 1.6, 1, 0xffffff, { sp: 1.5, up: 2.5, s: 0.6, s1: 1.6 }); } else { FX.foam.visible = false; FX.wave.visible = false; }
     // floating junk + rubber ducks
     if (!V.float) { V.float = []; for (let i = 0; i < 14; i++) { const g = new THREE.Group(); if (i % 3 === 0) { g.add(new THREE.Mesh(GEO.sphere(0.45, 16, 12), M(0xffd60a, { r: 0.35, cc: 0.8 }))); const hd = new THREE.Mesh(GEO.sphere(0.3, 14, 10), M(0xffd60a, { r: 0.35, cc: 0.8 })); hd.position.set(0, 0.45, 0.25); g.add(hd); const bk = new THREE.Mesh(GEO.cone(0.12, 0.25, 10), M(0xff7b00)); bk.rotation.x = Math.PI / 2; bk.position.set(0, 0.42, 0.6); g.add(bk); } else if (i % 3 === 1) g.add(new THREE.Mesh(GEO.rbox(1, 0.8, 1, 0.08), M(0xd4a373, { r: 0.8 }))); else g.add(new THREE.Mesh(GEO.sphere(0.5, 16, 12), M([0xff595e, 0x1982c4, 0x8ac926][i % 3], { r: 0.3, cc: 0.8 }))); g.userData = { a: Math.random() * 6.28, r: 6 + Math.random() * 30, s: (Math.random() - 0.5) * 0.12 }; G.scene.add(g); V.float.push(g); } }
     V.float.forEach((g, i) => { const u = g.userData; u.a += u.s * dt; g.visible = e.water > 0.8; g.position.set(Math.cos(u.a) * u.r, FX.water.position.y + Math.sin(G.t * 2 + i) * 0.15, Math.sin(u.a) * u.r * 1.4); g.rotation.y = u.a * 3 + i; g.rotation.z = Math.sin(G.t * 1.5 + i) * 0.15; });
-  } else if (W.sea != null) { FX.water.visible = true; FX.water.position.y = W.sea; FX.foam.visible = false; }
-  else { FX.water.visible = false; FX.foam.visible = false; }
+  } else if (W.sea != null) { FX.water.visible = true; FX.water.position.y = W.sea; FX.foam.visible = false; FX.wave.visible = false; }
+  else { FX.water.visible = false; FX.foam.visible = false; FX.wave.visible = false; }
   if (V.float && !(e.water != null && S.dz === 'flood' && (S.phase === 'active' || S.phase === 'calm') && e.water > 0.8)) V.float.forEach((g) => g.visible = false);
   // volcano + lava
   if (e.lava && S.dz === 'volcano' && S.phase === 'active') {

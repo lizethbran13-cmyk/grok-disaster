@@ -21,7 +21,7 @@ load();
 initGfx($('c'));
 G.autoStep = !Q.get('noauto');
 G.onStepDown = () => { SV.d.opts.gfx = 'low'; save(); toast('Graphics set to LOW for smoother play 🎮'); };
-if (SV.d.opts.gfx === 'low') setQuality('low');
+if (SV.d.opts.gfx === 'low' || Q.get('gfx') === 'low') setQuality('low');
 initFX(); initInput(); setSound(SV.d.opts.sound);
 
 /* ---------------- map loading ---------------- */

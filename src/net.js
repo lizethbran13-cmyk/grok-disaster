@@ -81,7 +81,7 @@ function onMsg(d, from) {
   else if (d.t === 'end') A.onRoundEnd();
 }
 function applySnap(d) {
-  const A = Net.App, W = A.W;
+  const A = Net.App, W = A.W; Net.snaps = (Net.snaps || 0) + 1; Net.lastWr = d.wr;
   if (d.ph === 'calm' && S.phase === 'results') { A.hidePanels(); }
   Object.assign(S, { phase: d.ph, t: d.tm, wave: d.wv, waves: d.wvs, dz: d.dz, next: d.nx, picked: d.pk, dzDur: d.dd, env: d.env || {}, star: d.st });
   // hazards: keep local t progressing smoothly

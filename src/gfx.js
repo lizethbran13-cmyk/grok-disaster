@@ -135,8 +135,10 @@ export function render(dt) {
   if (G.flash.intensity > 0) G.flash.intensity = Math.max(0, G.flash.intensity - dt * 60);
   if (G.composer) G.composer.render(dt); else G.renderer.render(G.scene, G.camera);
   // auto step-down: HIGH -> LOW if under 30 fps for 5 seconds
-  if (dt > 0) G.fps += (1 / Math.max(dt, 1e-3) - G.fps) * 0.05;
-  if (G.autoStep && G.quality === 'high' && G.fps < 30) { G.slowT += dt; if (G.slowT > 5) { setQuality('low'); G.onStepDown && G.onStepDown(); } }
-  else G.slowT = Math.max(0, G.slowT - dt * 2);
+  const now = performance.now(), rd = Math.min(1, (now - (G._lt || now)) / 1000); G._lt = now; // real (unclamped) frame time
+  if (rd > 0) G.fps += (1 / Math.max(rd, 1e-3) - G.fps) * Math.min(1, rd * 3);
+  if (document.hidden) return;
+  if (G.autoStep && G.quality === 'high' && G.fps < 30) { G.slowT += rd; if (G.slowT > 5) { setQuality('low'); G.onStepDown && G.onStepDown(); } }
+  else G.slowT = Math.max(0, G.slowT - rd * 2);
 }
 export { THREE };

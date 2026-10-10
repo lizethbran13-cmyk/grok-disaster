@@ -34,9 +34,13 @@ export function initFX() {
   FX.waterMat = new THREE.MeshStandardMaterial({ color: 0x19c3ff, roughness: 0.08, metalness: 0.05, transparent: true, opacity: 0.82, emissive: 0x0a5f9e, emissiveIntensity: 0.25 });
   FX.waterMat.onBeforeCompile = (sh) => {
     sh.uniforms.uT = { value: 0 }; FX.waterMat.userData.sh = sh;
-    sh.vertexShader = 'uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
+    sh.vertexShader = 'uniform float uT;\nvarying float vH;\nvarying vec2 vXY;\n' + sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
       float w1 = sin(position.x*0.18 + uT*1.6)*0.35 + cos(position.y*0.22 + uT*1.3)*0.3 + sin((position.x+position.y)*0.5+uT*2.6)*0.08;
-      transformed.z += w1;`).replace('#include <beginnormal_vertex>', `vec3 objectNormal = normalize(vec3(-cos(position.x*0.18+uT*1.6)*0.063, sin(position.y*0.22+uT*1.3)*0.066, 1.0));`);
+      transformed.z += w1; vH = w1; vXY = position.xy;`).replace('#include <beginnormal_vertex>', `vec3 objectNormal = normalize(vec3(-cos(position.x*0.18+uT*1.6)*0.063, sin(position.y*0.22+uT*1.3)*0.066, 1.0));`);
+    sh.fragmentShader = 'uniform float uT;\nvarying float vH;\nvarying vec2 vXY;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float rip = sin(vXY.x*1.3 + uT*2.0 + sin(vXY.y*0.9)) * sin(vXY.y*1.1 - uT*1.7 + sin(vXY.x*0.7));
+      diffuseColor.rgb = mix(diffuseColor.rgb * 0.82, diffuseColor.rgb, smoothstep(-0.5, 0.4, vH));
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), smoothstep(0.42, 0.62, vH + rip * 0.12) * 0.75 + smoothstep(0.86, 0.98, rip) * 0.35);`);
   };
   FX.water = new THREE.Mesh(new THREE.PlaneGeometry(320, 320, 120, 120), FX.waterMat); FX.water.rotation.x = -Math.PI / 2; FX.water.visible = false; FX.water.receiveShadow = true; G.scene.add(FX.water);
   FX.foam = new THREE.Mesh(new THREE.PlaneGeometry(320, 6, 60, 1), M(0xffffff, { r: 0.6, op: 0.85, e: 0xffffff, ei: 0.3 })); FX.foam.rotation.x = -Math.PI / 2; FX.foam.visible = false; G.scene.add(FX.foam);

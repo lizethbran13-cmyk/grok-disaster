@@ -44,17 +44,23 @@ Hunt.start = function (A, cs) {
   const C = Hunt.C = { cs, step: 0, swirls: pick(H.anomalies), probes: pick(H.probes), pad: H.pad, van: H.van, clues: [], t: 0, prog: 0, solved: false, hailT: 4, tries: 0 };
   C.swirls.forEach((s) => { const m = makeSwirl(); m.position.set(s.x, s.y, s.z); G.scene.add(m); objs.push(m); s.m = m; });
   C.probes.forEach((p) => { const m = makeProbe(); m.position.set(p.x, p.y, p.z); m.visible = false; G.scene.add(m); objs.push(m); p.m = m; });
+  // objective marker: big bobbing yellow pin, visible through the snow
+  const pin = C.pin = new THREE.Group(); const pm = new THREE.MeshBasicMaterial({ color: 0xfacc15, fog: false, depthTest: false, transparent: true });
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 20), pm); cone.rotation.x = Math.PI; pin.add(cone);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.75, 20, 14), pm); ball.position.y = 1.1; pin.add(ball);
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), new THREE.MeshBasicMaterial({ color: 0x7c3aed, fog: false, depthTest: false, transparent: true })); dot.position.set(0, 1.1, 0); dot.scale.z = 1.2; pin.add(dot);
+  pin.renderOrder = 10; pin.traverse((o) => o.renderOrder = 10); pin.visible = false; G.scene.add(pin); objs.push(pin);
   C.balloon = makeBalloon(); C.balloon.visible = false; G.scene.add(C.balloon); objs.push(C.balloon);
   // state: just you (no CPUs) in a calm-but-snowy world
   const me = newPlayer({ id: 0, pid: 'me', name: SV.d.name || 'You', look: Object.assign({}, SV.d.look), upg: A.myUpg(), cpu: false });
   me.x = C.van.x; me.z = C.van.z + 1.5; me.y = groundAt(W, me.x, me.z, 50); me.max = maxHp(me.upg); me.hp = me.max; me.yaw = Math.PI;
-  Object.assign(S, { phase: 'hunt', t: 0, wave: 0, waves: 0, map: cs.map, dz: null, next: null, picked: false, players: [me], haz: [], env: { shake: 0, rain: 0, snow: 1, ash: 0, hail: 0.25, wind: 6, cold: 1 }, wrecked: [], coins: [], star: null, fx: [], msgs: [] });
+  Object.assign(S, { phase: 'hunt', t: 0, wave: 0, waves: 0, map: cs.map, dz: null, next: null, picked: false, players: [me], haz: [], env: { shake: 0, rain: 0, snow: 0.5, ash: 0, hail: 0.12, wind: 4, cold: 1 }, wrecked: [], coins: [], star: null, fx: [], msgs: [] });
   W.buildings.forEach((b) => A.repair(W, b));
-  Hunt.on = true; A.mode = 'hunt'; A.myPid = 'me'; A.me = me; A.enterGame();
-  setTimeout(() => Hunt.briefing(), 300);
+  A.setMood('huntsnow', true); Hunt.on = true; A.mode = 'hunt'; A.myPid = 'me'; A.me = me; A.enterGame();
+  Hunt.briefing();
 };
 Hunt.stop = function () { Hunt.on = false; clearObjs(); Hunt.C = null; const el = document.getElementById('huntCard'); if (el) el.remove(); };
-Hunt.mood = () => Hunt.C && Hunt.C.solved ? (Hunt.C.cs.map === 'dinov' ? 'jungle' : Hunt.C.cs.map === 'frost' ? 'snowday' : 'sunny') : 'snow';
+Hunt.mood = () => Hunt.C && Hunt.C.solved ? (Hunt.C.cs.map === 'dinov' ? 'jungle' : Hunt.C.cs.map === 'frost' ? 'snowday' : 'sunny') : 'huntsnow';
 Hunt.briefing = function () {
   const A = Hunt.A, C = Hunt.C; if (!C) return;
   A.panel(`<div class="big">${C.cs.icon}</div><h2>CASE: ${A.esc(C.cs.title.toUpperCase())}</h2><div class="huntBrief"><div class="rat">🐭</div><p><b>${C.cs.boss}:</b> ${A.esc(C.cs.brief)}</p></div>
@@ -129,7 +135,7 @@ Hunt.hud = function () {
   const C = Hunt.C, A = Hunt.A, me = A.me; if (!C || !me) return;
   let el = document.getElementById('huntCard'); if (!el) { el = document.createElement('div'); el.id = 'huntCard'; document.getElementById('hud').appendChild(el); }
   const id = stepId(), cnt = id === 'scan' ? ' ' + C.swirls.filter((q) => q.done).length + '/3' : id === 'probe' ? ' ' + C.probes.filter((q) => q.done).length + '/3' : '';
-  const html = C.solved ? '<b>🏅 CASE SOLVED!</b> <button class="btn small" id="hcMenu">MENU</button>' : `<b>${C.cs.icon} ${A.esc(C.cs.title)}</b><div class="steps">${STEPS.map((s, i) => `<i class="${i < C.step ? 'on' : i === C.step ? 'cur' : ''}"></i>`).join('')}</div><div>${STEP_TXT[id] || ''}${cnt}</div><button class="btn small gray" id="hcClues">🔎 CLUES (${C.clues.length})</button>`;
+  const html = C.solved ? '<b>🏅 CASE SOLVED!</b> <button class="btn small" id="hcMenu">MENU</button>' : `<b>${C.cs.icon} ${A.esc(C.cs.title)}</b><div class="steps">${STEPS.map((s, i) => `<i class="${i < C.step ? 'on' : i === C.step ? 'cur' : ''}"></i>`).join('')}</div><div>${STEP_TXT[id] || ''}${cnt}</div>${C.dist != null ? `<div class="dist">📍 ${C.dist} m · follow the yellow pin</div>` : ''}<button class="btn small gray" id="hcClues">🔎 CLUES (${C.clues.length})</button>`;
   if (el._h !== html) { el._h = html; el.innerHTML = html; const b = document.getElementById('hcClues'); if (b) b.onclick = () => Hunt.showClues(); const m = document.getElementById('hcMenu'); if (m) m.onclick = () => A.quit(); }
   const wp = document.getElementById('wavePill'), tf = document.getElementById('timerFill'), chip = document.getElementById('safeChip');
   wp.textContent = C.solved ? '☀️ STORM OVER' : '🌨️ WEATHER HUNTER'; tf.style.width = Math.min(100, C.prog * 100) + '%';
@@ -137,6 +143,7 @@ Hunt.hud = function () {
   if (!C.solved && me.st === 'ok') { if (sh.fire) { chip.className = 'safe ok'; chip.textContent = '🔥 Toasty warm!'; } else if (!sh.out) { chip.className = 'safe ok'; chip.textContent = '🏠 Warm inside'; } else { chip.className = 'safe meh'; chip.textContent = '🥶 Cold! Warm up inside or by a fire'; } }
   // guide arrow + beacon to the current objective (to the stairs first if it is up high)
   const t = !C.solved && me.st === 'ok' ? target() : null;
+  if (t) { C.pin.visible = true; C.pin.position.set(t.x, (t.y || 0) + 6.5 + Math.sin(G.t * 3) * 0.4, t.z); C.pin.rotation.y = G.t * 1.5; const dd = Math.hypot(t.x - me.x, t.z - me.z); C.pin.scale.setScalar(Math.min(2.4, 1 + dd / 40)); C.dist = Math.round(dd); } else { if (C.pin) C.pin.visible = false; C.dist = null; }
   if (t) { const g = t.foot && me.y < t.y - 1.5 && Math.hypot(t.x - me.x, t.z - me.z) > 4 ? t.foot : t; const a = Math.atan2(g.x - me.x, g.z - me.z); FX.arrow.visible = true; FX.arrow.position.set(me.x + Math.sin(a) * 1.4, me.y + 2.4 + Math.sin(G.t * 5) * 0.1, me.z + Math.cos(a) * 1.4); FX.arrow.rotation.set(0, a, 0); FX.beacon.visible = true; FX.beacon.position.set(t.x, (t.y || 0) + 15, t.z); }
   else { FX.arrow.visible = false; FX.beacon.visible = false; }
 };

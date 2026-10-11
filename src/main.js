@@ -89,6 +89,7 @@ function updateCamera(dt) {
   const under = me.y < UNDER + 8, b = under ? null : buildingAt(W, me.x, me.y, me.z);
   if (b !== hiddenB) { if (hiddenB) hiddenB.upper.visible = !hiddenB.wrecked; if (b) b.upper.visible = false; hiddenB = b; }
   let dist = I.dist, pitch = I.pitch;
+  if (App.mode === 'hunt' && !b && !under) { dist = Math.max(dist, 15.5); pitch = Math.min(0.9, Math.max(pitch, 0.5)); }
   if (b) { dist = Math.min(dist, 8); pitch = Math.max(pitch, 0.95); }
   if (under) { dist = Math.max(7.5, Math.min(dist, 9)); pitch = Math.min(0.85, Math.max(pitch, 0.6)); }
   camT.set(me.x, me.y + 1.4, me.z);
@@ -155,12 +156,13 @@ App.startGuest = function (d) {
   enterGame();
 };
 function enterGame() {
-  const tb = $('toasts'); if (tb) tb.innerHTML = '';
+  clearToasts(); const tb = $('toasts'); if (tb) tb.innerHTML = '';
   clearFX(); resetVisuals(); hidePanels(); $('title').classList.add('hidden'); $('hud').classList.remove('hidden');
   I.enabled = true; App.lastPhase = null; App.lastWave = 0; App.waveCoins = 0; App.roundCoins = 0; App.roundKO = false; App.roundSaved = false;
   SV.d.stats.maps[App.W.id] = 1; if (Object.keys(SV.d.stats.maps).length >= 4) achieve('travel'); save();
   if (!SV.d.howto) { SV.d.howto = true; save(); showHowTo(); }
-  updateGadgets();
+  updateGadgets(); $('hud').classList.toggle('hunt', App.mode === 'hunt');
+  { const tb = $('toasts'); if (tb && tb.parentNode !== $('waveBox')) $('waveBox').appendChild(tb); } // toasts flow right under the disaster card
 }
 App.quit = function () {
   if (App.mode === 'host' || App.mode === 'guest') Net.leave();
@@ -330,7 +332,23 @@ function updateHud(dt) {
 function hurtFlash() { const f = $('fade'); f.style.background = '#ff2d55'; f.style.opacity = 0.35; setTimeout(() => { f.style.opacity = 0; }, 120); }
 function fade() { const f = $('fade'); f.style.background = '#000'; f.style.opacity = 0.7; setTimeout(() => f.style.opacity = 0, 160); }
 function bumpCoins() { const c = $('coinBox'); c.animate([{ transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 250 }); }
-export function toast(t, cls) { const box = $('toasts') || $('ui'); if (!box || !t) return; const el = document.createElement('div'); el.className = 'toast ' + (cls || ''); el.textContent = t; box.appendChild(el); while (box.children.length > 4) box.removeChild(box.firstChild); setTimeout(() => el.remove(), 2600); }
+// toasts: queued, max 2 on screen, de-duped, short. Sits under the disaster card so it never covers the action.
+const TQ = []; let tShown = []; const TMAX = 2, TDUR = 1900;
+export function toast(t, cls) {
+  if (!t) return; const key = t + '|' + (cls || '');
+  if (tShown.some((x) => x.key === key) || TQ.some((x) => x.key === key)) return;
+  TQ.push({ t, cls: cls || '', key }); while (TQ.length > 4) { const i = TQ.findIndex((x) => x.cls !== 'ach'); TQ.splice(i < 0 ? 0 : i, 1); }
+  pumpToasts();
+}
+function pumpToasts() {
+  const box = $('toasts') || $('ui'); if (!box) return;
+  while (tShown.length < TMAX && TQ.length) {
+    const it = TQ.shift(), el = document.createElement('div'); el.className = 'toast ' + it.cls; el.textContent = it.t; box.appendChild(el);
+    const rec = { key: it.key, el }; tShown.push(rec);
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => { el.remove(); tShown = tShown.filter((x) => x !== rec); pumpToasts(); }, 220); }, it.cls === 'ach' ? TDUR + 600 : TDUR);
+  }
+}
+function clearToasts() { TQ.length = 0; tShown.forEach((x) => x.el.remove()); tShown = []; }
 App.toast = toast;
 /* ---------------- panels ---------------- */
 function panel(html, bind, o = {}) {

@@ -173,7 +173,7 @@ export function addIgloo(B, x, y, z, ry = 0) {
 export function makeSwirl() { // a "storm swirl" anomaly: spinning snowy vortex with glowing rings
   const g = new THREE.Group();
   const pts = []; for (let i = 0; i <= 16; i++) { const t = i / 16; pts.push(new THREE.Vector2(0.4 + Math.pow(t, 1.6) * 3.2, t * 6)); }
-  const mat = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, emissive: 0x38bdf8, emissiveIntensity: 1.0, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, roughness: 1 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: 1.1, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, roughness: 1 });
   const f = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), mat); g.add(f);
   const rings = new THREE.Group(); g.add(rings);
   for (let i = 0; i < 3; i++) { const r = new THREE.Mesh(GEO.torus(1.2 + i * 0.9, 0.07, 6.283, 6, 40), glow(0x67e8f9, 0.7)); r.rotation.x = Math.PI / 2; r.position.y = 0.5 + i * 1.8; rings.add(r); }

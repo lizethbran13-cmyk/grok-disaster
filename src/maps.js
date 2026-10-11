@@ -5,32 +5,34 @@ import { M, glow } from './mats.js';
 import { newWorld, addWall, addPlat } from './world.js';
 import { makeBuilding } from './build.js';
 import { decorate } from './deco.js';
+import { buildDLCMap, DLC_MAPS } from './dlcmaps.js';
 
 export const MAPS = [
   { id: 'area51', name: 'Area 51', emoji: '👽', desc: 'Secret desert base with hangars, a control tower and a NUCLEAR BUNKER deep underground.', mood: 'desert' },
   { id: 'city', name: 'Grok City', emoji: '🏙️', desc: 'Skyscrapers with rooftop elevators, shops, a park and a subway station to hide in.', mood: 'sunny' },
   { id: 'beach', name: 'Sunny Beach', emoji: '🏖️', desc: 'Beach houses, a hotel, a pier and a lighthouse hill. Watch the ocean...', mood: 'sunny' },
-  { id: 'pine', name: 'Pine Peak', emoji: '🌲', desc: 'Cozy mountain town with log cabins, a ranger tower, a mine tunnel and Mt. Grumble.', mood: 'sunny' }
+  { id: 'pine', name: 'Pine Peak', emoji: '🌲', desc: 'Cozy mountain town with log cabins, a ranger tower, a mine tunnel and Mt. Grumble.', mood: 'sunny' },
+  ...DLC_MAPS
 ];
 const ss = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
-function groundMesh(W, scene, colorAt, size = 300, seg = 150) {
+export function groundMesh(W, scene, colorAt, size = 300, seg = 150) {
   const g = new THREE.PlaneGeometry(size, size, seg, seg); g.rotateX(-Math.PI / 2);
   const p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), h = W.terrain(x, z); p.setY(i, h); c.setHex(colorAt(x, z, h)); { const n = Math.sin(x * 0.13 + Math.sin(z * 0.09) * 2) * Math.cos(z * 0.11 + Math.sin(x * 0.07) * 2), n2 = Math.sin(x * 1.7 + z * 0.3) * Math.sin(z * 1.9 - x * 0.4); c.offsetHSL(n * 0.015, n * 0.05, n * 0.07 + n2 * 0.025); } col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
   const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 })); m.receiveShadow = true; scene.add(m); return m;
 }
-function road(B, x0, z0, x1, z1, w = 8, y = 0.03) {
+export function road(B, x0, z0, x1, z1, w = 8, y = 0.03) {
   const len = Math.hypot(x1 - x0, z1 - z0), ry = Math.atan2(x1 - x0, z1 - z0), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   B.add(GEO.box(w, 0.06, len), M(0x4a5260, { r: 0.85 }), mat4(cx, y, cz, 0, ry, 0));
   const n = Math.floor(len / 4);
   for (let i = 0; i < n; i++) { const t = (i + 0.5) / n - 0.5; B.add(GEO.box(0.22, 0.02, 1.8), M(0xffd23f, { r: 0.6 }), mat4(cx + Math.sin(ry) * t * len, y + 0.04, cz + Math.cos(ry) * t * len, 0, ry, 0)); }
 }
-function sidewalk(B, x, z, w, d, y = 0.06) { B.add(GEO.rbox(w, 0.18, d, 0.06), M(0xf3e6cf, { r: 0.85 }), mat4(x, y, z)); }
+export function sidewalk(B, x, z, w, d, y = 0.06) { B.add(GEO.rbox(w, 0.18, d, 0.06), M(0xf3e6cf, { r: 0.85 }), mat4(x, y, z)); }
 // lookout tower with a walkable ramp (high ground)
-function lookout(W, B, x, z, h, ry = 0, label = 'Lookout Tower', col = 0xe76f51) {
+export function lookout(W, B, x, z, h, ry = 0, label = 'Lookout Tower', col = 0xe76f51) {
   const base = W.terrain(x, z), c = Math.cos(ry), s = Math.sin(ry), wood = M(col, { r: 0.6 }), dk = M(0x6b4a2f, { r: 0.8 });
   const L = h * 1.7 + 1;
   const T = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
@@ -49,19 +51,19 @@ function lookout(W, B, x, z, h, ry = 0, label = 'Lookout Tower', col = 0xe76f51)
   addPlat(W, r0[0], r0[1], r1[0], r1[1], 0, null, { axis: ax, a0, a1, h0: base + h + 0.17, h1: base });
   W.high.push({ x, y: base + h + 0.2, z, label, foot: { x: T(0, 2.4 + L)[0], z: T(0, 2.4 + L)[1] } });
 }
-function fence(B, W, x0, z0, x1, z1, col = 0xffffff, solid) {
+export function fence(B, W, x0, z0, x1, z1, col = 0xffffff, solid) {
   const len = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(len / 2.5), m = M(col, { r: 0.5 }), ry = Math.atan2(x1 - x0, z1 - z0);
   for (let i = 0; i <= n; i++) { const t = i / n; B.mesh(GEO.cyl(0.08, 0.08, 1.6, 8), M(0x9ca3af, { m: 0.7, r: 0.3 }), x0 + (x1 - x0) * t, 0.8, z0 + (z1 - z0) * t); }
   B.add(GEO.box(0.06, 0.07, len), m, mat4((x0 + x1) / 2, 1.5, (z0 + z1) / 2, 0, ry, 0)); B.add(GEO.box(0.06, 0.07, len), m, mat4((x0 + x1) / 2, 0.8, (z0 + z1) / 2, 0, ry, 0));
   if (solid) addWall(W, x0 - 0.1, z0 - 0.1, x1 + 0.1, z1 + 0.1, -1, 1.7);
 }
-function waterTower(B, x, z, y = 0) { prop(x, z, 3, 10); const leg = M(0xc1121f, { r: 0.5, m: 0.3 }); [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]].forEach((q) => B.mesh(GEO.cyl(0.15, 0.2, 9, 10), leg, x + q[0], y + 4.5, z + q[1])); B.mesh(GEO.cap(2.6, 2.2, 24), M(0xf8f9fa, { r: 0.35, m: 0.5 }), x, y + 11.5, z); B.mesh(GEO.cone(2.7, 1.4, 24), M(0xc1121f, { r: 0.4 }), x, y + 14.3, z); }
-function radar(B, x, z) { prop(x, z, 1.5, 5); B.mesh(GEO.cyl(0.4, 0.6, 5, 16), M(0xadb5bd, { m: 0.8, r: 0.3 }), x, 2.5, z); B.add(new THREE.SphereGeometry(4, 32, 12, 0, 6.283, 0, 0.9), M(0xf1f5f9, { m: 0.6, r: 0.25, side: THREE.DoubleSide }), mat4(x, 6.5, z, -2.3, 0.6, 0)); B.mesh(GEO.sphere(0.4, 12, 8), M(0xef4444, { e: 0xef4444, ei: 1.5 }), x, 7.5, z); }
-function fountain(B, x, z) { prop(x, z, 4.2, 1.2); B.mesh(GEO.cyl(3.4, 3.6, 0.7, 40), M(0xe9ecef, { r: 0.5 }), x, 0.35, z); B.mesh(GEO.cyl(3.0, 3.0, 0.1, 40), M(0x4cc9f0, { r: 0.05, cc: 1, e: 0x0077b6, ei: 0.25 }), x, 0.66, z); B.mesh(GEO.cyl(0.4, 0.6, 1.8, 20), M(0xe9ecef, { r: 0.5 }), x, 1.2, z); B.mesh(GEO.sphere(0.9, 20, 12), M(0x90e0ef, { r: 0.05, op: 0.6, cc: 1 }), x, 2.3, z); }
-function trafficLight(B, x, z, ry) { prop(x, z, 0.25, 5); const p = M(0x2b2d42, { r: 0.4, m: 0.6 }); B.mesh(GEO.cyl(0.08, 0.1, 3.6, 8), p, x, 1.8, z); B.add(GEO.rbox(0.4, 1.1, 0.35, 0.08), p, mat4(x, 3.8, z, 0, ry, 0)); [0xef4444, 0xfacc15, 0x22c55e].forEach((c, i) => B.mesh(GEO.sphere(0.11, 12, 8), M(c, { e: c, ei: i === 2 ? 2 : 0.3 }), x + Math.sin(ry) * 0.18, 4.15 - i * 0.33, z + Math.cos(ry) * 0.18)); }
-function umbrella(B, x, z, col, y = 0) { prop(x, z, 0.3, 2.6); B.mesh(GEO.cyl(0.05, 0.05, 2.4, 8), M(0xffffff), x, y + 1.2, z); B.add(new THREE.SphereGeometry(1.5, 16, 6, 0, 6.283, 0, Math.PI * 0.3), M(col, { r: 0.5, side: THREE.DoubleSide }), mat4(x, y + 1.95, z)); }
-function cloud(B, x, y, z, s) { const m = M(0xffffff, { r: 1, e: 0xffffff, ei: 0.35 }); [[0, 0, 0, 1.4], [1.4, -0.2, 0.2, 1.0], [-1.4, -0.2, -0.1, 1.05], [0.6, 0.6, -0.2, 0.95], [-0.5, 0.5, 0.3, 0.9]].forEach((p) => B.mesh(GEO.sphere(1, 18, 12), m, x + p[0] * s, y + p[1] * s, z + p[2] * s, 0, 0, 0, p[3] * s, p[3] * s * 0.8, p[3] * s)); }
-function spreadCoins(W, R, n, ok) { let tries = 0; while (W.coinSpots.length < n && tries++ < 4000) { const x = (R() - 0.5) * W.half * 1.8, z = (R() - 0.5) * W.half * 1.8; if (ok && !ok(x, z)) continue; if (W.walls.some((w) => x > w.x0 - 1 && x < w.x1 + 1 && z > w.z0 - 1 && z < w.z1 + 1)) continue; W.coinSpots.push({ x, z }); } }
+export function waterTower(B, x, z, y = 0) { prop(x, z, 3, 10); const leg = M(0xc1121f, { r: 0.5, m: 0.3 }); [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]].forEach((q) => B.mesh(GEO.cyl(0.15, 0.2, 9, 10), leg, x + q[0], y + 4.5, z + q[1])); B.mesh(GEO.cap(2.6, 2.2, 24), M(0xf8f9fa, { r: 0.35, m: 0.5 }), x, y + 11.5, z); B.mesh(GEO.cone(2.7, 1.4, 24), M(0xc1121f, { r: 0.4 }), x, y + 14.3, z); }
+export function radar(B, x, z) { prop(x, z, 1.5, 5); B.mesh(GEO.cyl(0.4, 0.6, 5, 16), M(0xadb5bd, { m: 0.8, r: 0.3 }), x, 2.5, z); B.add(new THREE.SphereGeometry(4, 32, 12, 0, 6.283, 0, 0.9), M(0xf1f5f9, { m: 0.6, r: 0.25, side: THREE.DoubleSide }), mat4(x, 6.5, z, -2.3, 0.6, 0)); B.mesh(GEO.sphere(0.4, 12, 8), M(0xef4444, { e: 0xef4444, ei: 1.5 }), x, 7.5, z); }
+export function fountain(B, x, z) { prop(x, z, 4.2, 1.2); B.mesh(GEO.cyl(3.4, 3.6, 0.7, 40), M(0xe9ecef, { r: 0.5 }), x, 0.35, z); B.mesh(GEO.cyl(3.0, 3.0, 0.1, 40), M(0x4cc9f0, { r: 0.05, cc: 1, e: 0x0077b6, ei: 0.25 }), x, 0.66, z); B.mesh(GEO.cyl(0.4, 0.6, 1.8, 20), M(0xe9ecef, { r: 0.5 }), x, 1.2, z); B.mesh(GEO.sphere(0.9, 20, 12), M(0x90e0ef, { r: 0.05, op: 0.6, cc: 1 }), x, 2.3, z); }
+export function trafficLight(B, x, z, ry) { prop(x, z, 0.25, 5); const p = M(0x2b2d42, { r: 0.4, m: 0.6 }); B.mesh(GEO.cyl(0.08, 0.1, 3.6, 8), p, x, 1.8, z); B.add(GEO.rbox(0.4, 1.1, 0.35, 0.08), p, mat4(x, 3.8, z, 0, ry, 0)); [0xef4444, 0xfacc15, 0x22c55e].forEach((c, i) => B.mesh(GEO.sphere(0.11, 12, 8), M(c, { e: c, ei: i === 2 ? 2 : 0.3 }), x + Math.sin(ry) * 0.18, 4.15 - i * 0.33, z + Math.cos(ry) * 0.18)); }
+export function umbrella(B, x, z, col, y = 0) { prop(x, z, 0.3, 2.6); B.mesh(GEO.cyl(0.05, 0.05, 2.4, 8), M(0xffffff), x, y + 1.2, z); B.add(new THREE.SphereGeometry(1.5, 16, 6, 0, 6.283, 0, Math.PI * 0.3), M(col, { r: 0.5, side: THREE.DoubleSide }), mat4(x, y + 1.95, z)); }
+export function cloud(B, x, y, z, s) { const m = M(0xffffff, { r: 1, e: 0xffffff, ei: 0.35 }); [[0, 0, 0, 1.4], [1.4, -0.2, 0.2, 1.0], [-1.4, -0.2, -0.1, 1.05], [0.6, 0.6, -0.2, 0.95], [-0.5, 0.5, 0.3, 0.9]].forEach((p) => B.mesh(GEO.sphere(1, 18, 12), m, x + p[0] * s, y + p[1] * s, z + p[2] * s, 0, 0, 0, p[3] * s, p[3] * s * 0.8, p[3] * s)); }
+export function spreadCoins(W, R, n, ok) { let tries = 0; while (W.coinSpots.length < n && tries++ < 4000) { const x = (R() - 0.5) * W.half * 1.8, z = (R() - 0.5) * W.half * 1.8; if (ok && !ok(x, z)) continue; if (W.walls.some((w) => x > w.x0 - 1 && x < w.x1 + 1 && z > w.z0 - 1 && z < w.z1 + 1)) continue; W.coinSpots.push({ x, z }); } }
 
 export function buildMap(id, scene) {
   const W = newWorld(); W.id = id; W.meta = MAPS.find((m) => m.id === id);
@@ -186,7 +188,7 @@ export function buildMap(id, scene) {
     B.mesh(GEO.cyl(6, 8, 2, 32), M(0x5b4636, { r: 0.9 }), 64, mtn(64, -66) - 0.5, -66); B.mesh(GEO.cyl(5, 5, 0.3, 32), M(0xff6b00, { e: 0xff4d00, ei: 2.2 }), 64, mtn(64, -66) + 0.4, -66);
     W.volcano = { x: 64, z: -66, y: mtn(64, -66), real: true }; W.spawns = [[3, 3], [-3, 3], [3, -3], [-3, -3]];
     for (let j = 0; j < 9; j++) cloud(B, (R() - 0.5) * 300, 48 + R() * 20, (R() - 0.5) * 300, 4 + R() * 3);
-  }
+  } else buildDLCMap(id, W, B, root, R);
   decorate(W, B, root, R, id);
   W.props = PROPS.slice();
   B.build(root);

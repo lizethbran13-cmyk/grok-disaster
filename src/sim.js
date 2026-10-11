@@ -194,7 +194,7 @@ function botThink(p, dt, W) {
     }
     // dodge telegraphed hazards
     for (const h of S.haz) {
-      if (h.k === 'beam' || h.k === 'crack' || h.k === 'collapse') continue;
+      if (h.k === 'beam' || h.k === 'crack' || h.k === 'collapse' || h.k === 'flame' || h.k === 'stampede') continue;
       const dd = Math.hypot(p.x - h.x, p.z - h.z); if (dd < h.r + 0.6 && h.t > 0.3 && !(safe && safe !== 'maybe' && h.k !== 'junk')) { const L = dd || 1; inp.x = (p.x - h.x) / L; inp.z = (p.z - h.z) / L; a.dodge = 0.4; return inp; }
     }
   }

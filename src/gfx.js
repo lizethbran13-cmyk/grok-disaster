@@ -20,7 +20,14 @@ const MOODS = { // bright, saturated cartoon palette (top sky, horizon, fog)
   snow:    { top: 0x6fb6ff, hor: 0xeaf6ff, elev: 32, azim: 150, sunI: 1.5, hemiI: 1.3, fog: 0xe4f2ff, fogNear: 18, fogFar: 120, exp: 1.0, env: 0.5, sunCol: 0xf2f8ff, gnd: 0xd8e6f2 },
   volcano: { top: 0x7a2fb0, hor: 0xff8a4a, elev: 22, azim: 200, sunI: 2.0, hemiI: 1.0, fog: 0xff9a6a, fogNear: 40, fogFar: 190, exp: 1.0, env: 0.4, sunCol: 0xffb070, gnd: 0x9a6a5a },
   alien:   { top: 0x2a1a7a, hor: 0xd36cff, elev: 18, azim: 300, sunI: 1.4, hemiI: 1.0, fog: 0x9a6ad8, fogNear: 50, fogFar: 220, exp: 1.0, env: 0.45, sunCol: 0xd8c8ff, gnd: 0x6a8a7a },
-  quake:   { top: 0x2f9bff, hor: 0xffe0b0, elev: 40, azim: 140, sunI: 2.3, hemiI: 1.15, fog: 0xf2dcb8, fogNear: 55, fogFar: 240, exp: 1.0, env: 0.45, sunCol: 0xfff0d0, gnd: 0xc8b090 }
+  quake:   { top: 0x2f9bff, hor: 0xffe0b0, elev: 40, azim: 140, sunI: 2.3, hemiI: 1.15, fog: 0xf2dcb8, fogNear: 55, fogFar: 240, exp: 1.0, env: 0.45, sunCol: 0xfff0d0, gnd: 0xc8b090 },
+  // Super Thunder Expansion
+  snowday: { top: 0x3aa0ff, hor: 0xe6f6ff, elev: 38, azim: 150, sunI: 2.2, hemiI: 1.25, fog: 0xdff1ff, fogNear: 80, fogFar: 300, exp: 1.0, env: 0.5, sunCol: 0xfff8ea, gnd: 0xdbe7f3 },
+  jungle:  { top: 0x2b9bff, hor: 0xd9ffd0, elev: 46, azim: 130, sunI: 2.4, hemiI: 1.05, fog: 0xc9f2c0, fogNear: 85, fogFar: 300, exp: 1.0, env: 0.45, sunCol: 0xfff1cf, gnd: 0x7fbf5a },
+  acid:    { top: 0x1f3d1a, hor: 0xa3e635, elev: 26, azim: 170, sunI: 1.1, hemiI: 1.1, fog: 0x9bc56a, fogNear: 30, fogFar: 150, exp: 1.0, env: 0.4, sunCol: 0xd9f99d, gnd: 0x6b8f3a },
+  dragon:  { top: 0x4c1d95, hor: 0xff7849, elev: 16, azim: 230, sunI: 2.0, hemiI: 1.0, fog: 0xff9a6a, fogNear: 50, fogFar: 230, exp: 1.0, env: 0.4, sunCol: 0xffb070, gnd: 0xa86a5a },
+  dino:    { top: 0x2f8fd8, hor: 0xffe7a3, elev: 34, azim: 120, sunI: 2.3, hemiI: 1.1, fog: 0xe9d9a6, fogNear: 45, fogFar: 220, exp: 1.0, env: 0.45, sunCol: 0xffedc0, gnd: 0xb0a070 },
+  whiteout:{ top: 0x8fb6dc, hor: 0xf1f7ff, elev: 26, azim: 150, sunI: 1.2, hemiI: 1.4, fog: 0xe8f2fc, fogNear: 12, fogFar: 85, exp: 1.0, env: 0.5, sunCol: 0xf2f8ff, gnd: 0xe0eaf4 }
 };
 export { MOODS };
 

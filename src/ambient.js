@@ -10,7 +10,10 @@ const LANES = {
   area51: [{ ax: 'z', c: -1.8, d: 1, a: -48, b: 44 }, { ax: 'x', c: 1.8, d: -1, a: -48, b: 48 }],
   city: [-30, 0, 30].flatMap((v, i) => [{ ax: 'z', c: v - 2.2, d: -1, a: -73, b: 73, o: i * 40 }, { ax: 'x', c: v + 2.2, d: -1, a: -73, b: 73, o: i * 25 + 12 }]),
   beach: [{ ax: 'x', c: 6, d: 1, a: -73, b: 73 }, { ax: 'x', c: 6, d: 1, a: -73, b: 73, o: 70 }, { ax: 'z', c: 1.6, d: -1, a: -72, b: 3 }],
-  pine: [{ ax: 'x', c: 1.4, d: 1, a: -48, b: 48 }, { ax: 'z', c: -1.4, d: -1, a: -42, b: 42, o: 30 }]
+  pine: [{ ax: 'x', c: 1.4, d: 1, a: -48, b: 48 }, { ax: 'z', c: -1.4, d: -1, a: -42, b: 42, o: 30 }],
+  ratita: [{ ax: 'x', c: 2.2, d: 1, a: -73, b: 73 }, { ax: 'x', c: -2.2, d: -1, a: -73, b: 73, o: 50 }, { ax: 'z', c: -32.2, d: -1, a: -73, b: 73, o: 20 }, { ax: 'z', c: 27.8, d: 1, a: -73, b: 73, o: 60 }],
+  frost: [{ ax: 'x', c: 1.4, d: 1, a: -50, b: 50 }, { ax: 'z', c: -1.4, d: -1, a: -44, b: 44, o: 30 }],
+  dinov: [{ ax: 'x', c: 1.6, d: 1, a: -58, b: 58 }, { ax: 'z', c: -1.6, d: -1, a: -58, b: 48, o: 40 }]
 };
 const LOOKS = [[0xff595e, 0x1e3a8a, 'cap'], [0x8ac926, 0x3f3f46, 'beanie'], [0xffca3a, 0x065f46, 'none'], [0x6a4c93, 0x7c2d12, 'party'], [0x4cc9f0, 0x334155, 'cowboy'], [0xf72585, 0x1e3a8a, 'none'], [0xff924c, 0x3f3f46, 'chef'], [0x06d6a0, 0x7c2d12, 'cap']];
 const SK = [0xe0a979, 0xf6c9a0, 0x8a5a3b, 0xb97a4f, 0xffd9b8];
@@ -33,11 +36,11 @@ export function setupAmbient(W, scene, low) {
   const cols = [0xff595e, 0xffca3a, 0x3a86ff, 0x8ac926, 0xf72585, 0x4cc9f0];
   lanes.forEach((l, i) => {
     if (low && i % 2) return;
-    const B = new Batch(); addCar(B, 0, 0, 0, 0, W.id === 'area51' ? [0x6b8e23, 0x556b2f][i % 2] : cols[i % cols.length]);
+    const B = new Batch(); addCar(B, 0, 0, 0, 0, W.id === 'area51' || W.id === 'dinov' ? [0x6b8e23, 0x556b2f][i % 2] : cols[i % cols.length]);
     const g = new THREE.Group(); B.build(g); root.add(g);
     A.cars.push({ g, l, s: l.a + ((l.o || 0) + i * 17) % (l.b - l.a), v: 7 });
   });
-  const nb = low ? 3 : 7, bc = W.id === 'beach' ? 0xffffff : W.id === 'pine' ? 0x1d3557 : W.id === 'area51' ? 0x6b4a2f : 0x64748b;
+  const nb = low ? 3 : 7, bc = W.id === 'beach' || W.id === 'frost' ? 0xffffff : W.id === 'dinov' ? 0x7c2d12 : W.id === 'pine' ? 0x1d3557 : W.id === 'area51' ? 0x6b4a2f : 0x64748b;
   for (let i = 0; i < nb; i++) {
     const B = new Batch(), m = M(bc, { r: 0.6 });
     B.mesh(GEO.sphere(0.22, 10, 8), m, 0, 0, 0, 0, 0, 0, 1, 0.8, 1.6); B.mesh(GEO.sphere(0.13, 8, 6), m, 0, 0.1, 0.32);

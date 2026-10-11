@@ -179,7 +179,7 @@ export function updateFX(dt, focus, weather) {
   if (FX.rain.visible) {
     const a = FX.rain.geometry.attributes.position.array, D = FX.rainD, wx = weather.wind || 0;
     for (let i = 0; i < D.length; i++) { const d = D[i]; d[1] -= dt * 38; if (d[1] < 0) { d[1] += 30; d[0] = (Math.random() - 0.5) * 60; d[2] = (Math.random() - 0.5) * 60; } const x = focus.x + d[0], y = focus.y - 4 + d[1], z = focus.z + d[2]; a[i * 6] = x; a[i * 6 + 1] = y; a[i * 6 + 2] = z; a[i * 6 + 3] = x + wx * 0.05; a[i * 6 + 4] = y + 0.9; a[i * 6 + 5] = z; }
-    FX.rain.geometry.attributes.position.needsUpdate = true; FX.rain.material.opacity = 0.55 * Math.min(1, weather.rain);
+    FX.rain.geometry.attributes.position.needsUpdate = true; FX.rain.material.opacity = (weather.acid ? 0.8 : 0.55) * Math.min(1, weather.rain); FX.rain.material.color.setHex(weather.acid ? 0x9dff3a : 0xcfe8ff);
   }
   // snow / ash
   FX.snow.visible = weather.snow > 0.02 || weather.ash > 0.02;

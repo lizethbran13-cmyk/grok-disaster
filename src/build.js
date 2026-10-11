@@ -204,6 +204,34 @@ function furnish(W, b, B, put, F) {
     [-1.3, 1.6].forEach((z) => [-1.15, 1.15].forEach((x) => put(B, GEO.cyl(0.45, 0.45, 0.3, 20), M(0x1f2937, { r: 0.8 }), x, 0.65, z, 0, 0, Math.PI / 2)));
     put(B, GEO.rbox(0.5, 0.2, 0.3, 0.05), M(0x3b82f6, { e: 0x3b82f6, ei: 2 }), -0.4, 3.15, 1.2); put(B, GEO.rbox(0.5, 0.2, 0.3, 0.05), M(0xef4444, { e: 0xef4444, ei: 2 }), 0.4, 3.15, 1.2);
     table(hx - 1.2, -hz + 1.4, 1.4, 1.0); shelf(-hx + 0.4, 0, 2.4, Math.PI / 2);
+  } else if (I === 'lab') { // Ratita Industries lab: benches with glowing glassware, specimen tubes, computers
+    const tubeC = [0x4ade80, 0x22d3ee, 0xf472b6, 0xfacc15];
+    for (let i = -1; i <= 1; i += 2) if (hx > 2.2) { counter(i * (hx - 1.6), -0.2, Math.min(2.6, hz * 0.9), 0xe2e8f0); for (let k = 0; k < 4; k++) { const c = tubeC[(k + (i > 0 ? 2 : 0)) % 4]; put(B, GEO.cyl(0.09, 0.12, 0.3, 12), M(0xe0f2fe, { r: 0.05, op: 0.5, cc: 1 }), i * (hx - 1.6) - 0.6 + k * 0.4, 1.45, -0.2 - 0.1); put(B, GEO.cyl(0.08, 0.1, 0.16, 12), M(c, { e: c, ei: 1.4, r: 0.2 }), i * (hx - 1.6) - 0.6 + k * 0.4, 1.36, -0.3); } }
+    [[-hx + 0.55, -hz + 0.55], [hx - 0.55, -hz + 0.55]].forEach((q, i) => { const c = tubeC[i + 1]; put(B, GEO.cyl(0.5, 0.5, 0.25, 24), M(0x64748b, { m: 0.6, r: 0.35 }), q[0], 0.33, q[1]); put(B, GEO.cyl(0.42, 0.42, 2.0, 24), M(0xe0f2fe, { r: 0.05, op: 0.35, cc: 1 }), q[0], 1.45, q[1]); put(B, GEO.cyl(0.36, 0.36, 1.7, 20), M(c, { e: c, ei: 0.9, r: 0.2, op: 0.7 }), q[0], 1.3, q[1]); put(B, GEO.cyl(0.5, 0.5, 0.2, 24), M(0x64748b, { m: 0.6, r: 0.35 }), q[0], 2.55, q[1]); });
+    desk(0, -hz + 1.4); if (hz > 3) table(0, hz - 1.6, 1.4, 0.9, 0xf8fafc);
+    // Ratita logo on the back wall: grey rat face with pink ears
+    put(B, GEO.sphere(0.45, 20, 14), M(0x9ca3af, { r: 0.5 }), 0, 2.6, -hz + 0.05, 0, 0, 0, 1, 1, 0.25); [-1, 1].forEach((s) => { put(B, GEO.sphere(0.26, 16, 10), M(0x9ca3af, { r: 0.5 }), s * 0.38, 2.98, -hz + 0.05, 0, 0, 0, 1, 1, 0.2); put(B, GEO.sphere(0.16, 12, 8), M(0xf9a8d4, { r: 0.5 }), s * 0.38, 2.98, -hz + 0.1, 0, 0, 0, 1, 1, 0.2); });
+    put(B, GEO.sphere(0.07, 10, 8), M(0xf472b6), 0, 2.52, -hz + 0.17);
+  } else if (I === 'museum') { // dino hall: a big skeleton on a plinth, fossil cases, rope posts
+    const bone = M(0xf5ead0, { r: 0.6 }), sx = 0, sz = -0.3;
+    put(B, GEO.rbox(Math.min(lw - 2.4, 5), 0.35, Math.min(ld - 3, 2.6), 0.08), M(0x8b6f47, { r: 0.8 }), sx, 0.38, sz);
+    for (let i = 0; i < 9; i++) { const t = i / 8, x = sx - 1.9 + t * 3.8, y = 2.0 + Math.sin(t * Math.PI) * 0.35 - (t > 0.75 ? (t - 0.75) * 2.2 : 0); put(B, GEO.sphere(0.13, 10, 8), bone, x, y, sz); if (i > 1 && i < 7) put(B, GEO.torus(0.42 - Math.abs(t - 0.45) * 0.4, 0.04, Math.PI * 1.25, 6, 16), bone, x, y - 0.32, sz, 0, Math.PI / 2, Math.PI * 0.62); }
+    put(B, GEO.cap(0.07, 1.6, 8), bone, sx + 2.6, 1.75, sz, 0, 0, 1.0); put(B, GEO.rbox(0.9, 0.42, 0.45, 0.12), bone, sx + 3.1, 2.25, sz); put(B, GEO.rbox(0.7, 0.12, 0.4, 0.05), bone, sx + 3.15, 1.98, sz);
+    [[-1.2, 0.3], [-1.2, -0.3], [0.9, 0.3], [0.9, -0.3]].forEach((q) => { put(B, GEO.cap(0.07, 1.1, 8), bone, sx + q[0], 1.15, sz + q[1]); put(B, GEO.rbox(0.3, 0.08, 0.2, 0.03), bone, sx + q[0] + 0.08, 0.6, sz + q[1]); });
+    [[-hx + 0.8, hz - 1.2], [hx - 0.8, hz - 1.2]].forEach((q, i) => { put(B, GEO.rbox(1.1, 0.9, 0.9, 0.05), M(0x5a3a22, { r: 0.6 }), q[0], 0.65, q[1]); put(B, GEO.rbox(1.0, 0.6, 0.8, 0.04), M(0xbfe6ff, { r: 0.05, op: 0.3, cc: 1 }), q[0], 1.4, q[1]); put(B, GEO.rock(i + 2, 1), M(i ? 0xd4a373 : 0xa3a3a3, { r: 0.8 }), q[0], 1.25, q[1], 0, i, 0, 0.22); });
+    for (let i = 0; i < 5; i++) put(B, GEO.cyl(0.05, 0.07, 0.9, 10), M(0xd4af37, { m: 1, r: 0.3 }), sx - 2 + i, 0.65, sz + 1.7); put(B, GEO.box(4, 0.04, 0.04), M(0xb91c1c), sx, 0.95, sz + 1.7);
+    table(0, hz - 1.0, 1.4, 0.8, 0x8b6f47); shelf(0, -hz + 0.3, Math.min(4, hx * 1.4), 0, [0xf5ead0, 0xd4a373, 0xa3a3a3, 0x84cc16]);
+  } else if (I === 'factory') { // gadget factory: conveyor belts, robot arms, cheese wheels, crates
+    for (let r = -1; r <= 1; r += 2) { const z = r * Math.min(2.2, hz * 0.45); put(B, GEO.rbox(lw - 3, 0.7, 1.1, 0.06), M(0x334155, { r: 0.5, m: 0.4 }), 0, 0.55, z); put(B, GEO.box(lw - 3, 0.04, 0.9), M(0x111827, { r: 0.9 }), 0, 0.92, z); [-0.6, 0.6].forEach((e) => put(B, GEO.box(lw - 3, 0.1, 0.08), M(0xfacc15, { r: 0.5 }), 0, 0.98, z + e));
+      for (let k = 0; k < Math.floor((lw - 4) / 1.6); k++) { const x = -lw / 2 + 2.2 + k * 1.6; if (k % 2) put(B, GEO.cyl(0.32, 0.32, 0.22, 20), M(0xfacc15, { r: 0.5 }), x, 1.06, z); else put(B, GEO.rbox(0.45, 0.4, 0.45, 0.05), M(0xd4a373, { r: 0.8 }), x, 1.15, z); }
+      const ax = r * (hx - 2.2); put(B, GEO.cyl(0.35, 0.45, 0.4, 16), M(0xf97316, { r: 0.4, m: 0.4 }), ax, 0.4, z - r * 1.0); put(B, GEO.cap(0.14, 1.2, 10), M(0xf97316, { r: 0.4, m: 0.4 }), ax, 1.2, z - r * 1.0, 0.5 * r, 0, 0.3); put(B, GEO.sphere(0.18, 12, 8), M(0x22d3ee, { e: 0x22d3ee, ei: 1.5 }), ax + 0.25, 1.85, z - r * 0.6); }
+    crate(-hx + 0.8, 0, 1.0); crate(-hx + 0.8, 1.1, 0.8); crate(hx - 0.8, 0, 1.0); table(0, hz - 1.0, 1.6, 0.9, 0x94a3b8); table(0, -hz + 1.0, 1.6, 0.9, 0x94a3b8);
+    put(B, GEO.rbox(3.2, 0.6, 0.1, 0.05), M(0xf97316, { e: 0xf97316, ei: 0.5 }), 0, Math.min(b.ceil - 0.6, 3.4), -hz + 0.05);
+  } else if (I === 'observatory') { // weather station: wall of radar monitors, console, globe
+    for (let i = 0; i < 3; i++) { const x = -1.8 + i * 1.8; if (Math.abs(x) > hx - 0.6) continue; put(B, GEO.rbox(1.6, 1.0, 0.1, 0.04), M(0x0f172a, { cc: 1, r: 0.2 }), x, 2.0, -hz + 0.08); put(B, GEO.box(1.45, 0.85, 0.02), M([0x22d3ee, 0x4ade80, 0xa78bfa][i], { e: [0x0ea5e9, 0x16a34a, 0x7c3aed][i], ei: 0.9 }), x, 2.0, -hz + 0.14); put(B, GEO.torus(0.3, 0.025, 6.283, 6, 24), M(0xffffff, { e: 0xffffff, ei: 1 }), x, 2.0, -hz + 0.16); }
+    counter(0, -hz + 1.1, Math.min(lw - 2, 4.4), 0x1e3a8a); desk(-hx + 1.2, hz - 1.6);
+    put(B, GEO.cyl(0.08, 0.12, 0.9, 10), M(0x8b5a2b), hx - 1.0, 0.65, hz - 1.0); put(B, GEO.sphere(0.45, 24, 16), M(0x3b82f6, { r: 0.4, cc: 0.5 }), hx - 1.0, 1.4, hz - 1.0); put(B, GEO.torus(0.5, 0.03, Math.PI, 6, 20), M(0xd4af37, { m: 1, r: 0.3 }), hx - 1.0, 1.4, hz - 1.0, 0, 0, 0.4);
+    [[0.25, 0.2], [-0.2, -0.15], [0.1, -0.3]].forEach((q) => put(B, GEO.sphere(0.16, 10, 8), M(0x22c55e, { r: 0.5 }), hx - 1.0 + q[0], 1.4 + q[1], hz - 1.0 + 0.32, 0, 0, 0, 1, 1, 0.5));
   } else if (I === 'bunkerTop') {
     put(B, GEO.rbox(lw - 1.2, 0.05, 2.6, 0.02), M(0xfacc15, { r: 0.6 }), 0, 0.24, 0);
     for (let i = 0; i < 6; i++) put(B, GEO.box(0.35, 0.06, 2.6), M(0x111827), -lw / 2 + 1.2 + i * (lw - 2.4) / 5, 0.25, 0, 0, 0.6);
@@ -215,21 +243,22 @@ function furnish(W, b, B, put, F) {
 function makeRoom(W, scene, b, B, put, F, kind) {
   const lw = b.lw, ld = b.ld;
   const rw = Math.max(lw, kind === 'bunker' ? 16 : 8), rd = Math.max(ld, kind === 'bunker' ? 12 : 7);
-  const room = { id: 'r' + b.id, kind, b, name: kind === 'bunker' ? 'Nuclear Bunker' : kind === 'subway' ? 'Subway Station' : kind === 'mine' ? 'Mine Tunnel' : 'Basement' };
+  const room = { id: 'r' + b.id, kind, b, name: kind === 'bunker' ? 'Nuclear Bunker' : kind === 'subway' ? 'Subway Station' : kind === 'mine' ? 'Mine Tunnel' : kind === 'lab' ? 'Secret Lab' : kind === 'cave' ? 'Ice Cave' : 'Basement' };
   const sn = b.door === 's' || b.door === 'n'; const ww = sn ? rw : rd, dd = sn ? rd : rw;
   room.x0 = b.x - ww / 2; room.x1 = b.x + ww / 2; room.z0 = b.z - dd / 2; room.z1 = b.z + dd / 2;
   // hatch pad on the ground floor
   const hl = kind === 'bunker' ? [0, 0] : [b.lw / 2 - 1.3, b.ld / 2 - 1.5 - (b.elevator ? 0 : 0)];
   if (b.interior === 'home' || b.interior === 'cabin') { hl[0] = -b.lw / 2 + 1.4; hl[1] = -b.ld / 2 + 3.0 > b.ld / 2 - 1.2 ? 0 : -b.ld / 2 + 3.0; }
-  if (b.interior === 'shop' || b.interior === 'office' || b.interior === 'diner') { hl[0] = -b.lw / 2 + 1.2; hl[1] = 0.6; }
+  if (b.interior === 'shop' || b.interior === 'office' || b.interior === 'diner' || b.interior === 'observatory' || b.interior === 'museum') { hl[0] = -b.lw / 2 + 1.2; hl[1] = 0.6; }
+  if (b.interior === 'lab' || b.interior === 'factory') { hl[0] = -b.lw / 2 + 1.2; hl[1] = b.ld / 2 - 1.6; }
   const yel = kind === 'bunker' ? 0xfacc15 : 0xffb703;
   put(B, GEO.rbox(1.8, 0.08, 1.8, 0.04), M(0x334155, { m: 0.6, r: 0.4 }), hl[0], 0.25, hl[1]);
   padMesh(B, put, hl[0], 0.28, hl[1], yel);
   const hp = F.w(hl[0], hl[1]);
   const g = new THREE.Group(); scene.add(g); room.group = g;
   const R = new Batch(), Y = UNDER;
-  const wallC = kind === 'bunker' ? 0x9aa5b1 : kind === 'mine' ? 0x8d6e63 : kind === 'subway' ? 0xe9f5f9 : 0xbfa98a;
-  const floorC = kind === 'bunker' ? 0x64748b : kind === 'mine' ? 0x6d4c41 : kind === 'subway' ? 0x94a3b8 : 0x8d99ae;
+  const wallC = kind === 'bunker' ? 0x9aa5b1 : kind === 'mine' ? 0x8d6e63 : kind === 'subway' ? 0xe9f5f9 : kind === 'lab' ? 0xe2e8f0 : kind === 'cave' ? 0xbfe6ff : 0xbfa98a;
+  const floorC = kind === 'bunker' ? 0x64748b : kind === 'mine' ? 0x6d4c41 : kind === 'subway' ? 0x94a3b8 : kind === 'lab' ? 0x94a3b8 : kind === 'cave' ? 0xdbeafe : 0x8d99ae;
   R.rbox(M(floorC, { r: 0.7 }), ww + 0.6, 0.4, dd + 0.6, 0.1, b.x, Y - 0.2, b.z);
   const wm = M(wallC, { r: 0.8 }), wh = 6.5;
   R.box(wm, ww + 0.6, wh, 0.3, b.x, Y + wh / 2, room.z0 - 0.15); R.box(wm, ww + 0.6, wh, 0.3, b.x, Y + wh / 2, room.z1 + 0.15);
@@ -237,7 +266,7 @@ function makeRoom(W, scene, b, B, put, F, kind) {
   addWall(W, room.x0 - 0.3, room.z0 - 0.3, room.x1 + 0.3, room.z0, Y, Y + 6); addWall(W, room.x0 - 0.3, room.z1, room.x1 + 0.3, room.z1 + 0.3, Y, Y + 6);
   addWall(W, room.x0 - 0.3, room.z0, room.x0, room.z1, Y, Y + 6); addWall(W, room.x1, room.z0, room.x1 + 0.3, room.z1, Y, Y + 6);
   // floor tiles + hazard border (so the room reads clearly from the camera)
-  { const t1 = M(kind === 'bunker' ? 0x7b8794 : kind === 'mine' ? 0x7a5646 : kind === 'subway' ? 0xcbd5e1 : 0xa3b1c2, { r: 0.7 }); for (let ix = 0; ix < Math.floor(ww / 1.5); ix++) for (let iz = 0; iz < Math.floor(dd / 1.5); iz++) if ((ix + iz) % 2 === 0) R.box(t1, 1.48, 0.02, 1.48, room.x0 + 0.75 + ix * 1.5, Y + 0.01, room.z0 + 0.75 + iz * 1.5); }
+  { const t1 = M(kind === 'bunker' ? 0x7b8794 : kind === 'mine' ? 0x7a5646 : kind === 'subway' ? 0xcbd5e1 : kind === 'lab' ? 0xf1f5f9 : kind === 'cave' ? 0xeff6ff : 0xa3b1c2, { r: 0.7 }); for (let ix = 0; ix < Math.floor(ww / 1.5); ix++) for (let iz = 0; iz < Math.floor(dd / 1.5); iz++) if ((ix + iz) % 2 === 0) R.box(t1, 1.48, 0.02, 1.48, room.x0 + 0.75 + ix * 1.5, Y + 0.01, room.z0 + 0.75 + iz * 1.5); }
   if (kind === 'bunker') { for (let k = 0; k < Math.floor(ww / 0.8); k++) { R.box(M(k % 2 ? 0x111827 : 0xfacc15, { r: 0.6 }), 0.8, 0.03, 0.35, room.x0 + 0.4 + k * 0.8, Y + 0.02, room.z0 + 2.8); } const cx = b.x - 1.5, cz = b.z + 1; R.mesh(GEO.cyl(1.4, 1.4, 0.03, 32), M(0xfacc15, { r: 0.5 }), cx, Y + 0.03, cz); R.mesh(GEO.cyl(0.25, 0.25, 0.04, 16), M(0x111827), cx, Y + 0.04, cz); for (let k = 0; k < 3; k++) { const a = k * 2.094 + 0.52; R.add(new THREE.CircleGeometry(1.25, 12, a - 0.5, 1.0).rotateX(-Math.PI / 2), M(0x111827, { r: 0.6 }), mat4(cx, Y + 0.07, cz)); } }
   // stripes, lamps, props
   const lampM = M(0xfff1c1, { e: 0xffe08a, ei: 2.2 });
@@ -259,6 +288,17 @@ function makeRoom(W, scene, b, B, put, F, kind) {
     for (let i = 0; i < 4; i++) R.box(M(0x1e293b, { cc: 1, r: 0.1 }), 1.2, 0.9, 2.5, room.x0 + 1.8 + i * (ww - 3.6) / 3, Y + 2.0, room.z0 + 1.6);
     R.box(M(0xfacc15), ww, 0.05, 0.3, b.x, Y + 0.03, room.z0 + 3.1);
     for (let i = 0; i < 3; i++) { R.rbox(M(0x8b5cf6, { r: 0.5 }), 1.6, 0.12, 0.5, 0.04, room.x0 + 2 + i * 3, Y + 0.5, room.z1 - 0.6); }
+  } else if (kind === 'lab') {
+    const cc = [0x4ade80, 0x22d3ee, 0xf472b6, 0xa78bfa];
+    for (let i = 0; i < Math.max(2, Math.floor(ww / 2.6)); i++) { const x = room.x0 + 1.2 + i * 2.6, c = cc[i % 4]; R.mesh(GEO.cyl(0.55, 0.55, 0.25, 24), M(0x475569, { m: 0.6, r: 0.35 }), x, Y + 0.12, room.z0 + 0.9); R.mesh(GEO.cyl(0.45, 0.45, 2.4, 24), M(0xe0f2fe, { r: 0.05, op: 0.3, cc: 1 }), x, Y + 1.45, room.z0 + 0.9); R.mesh(GEO.cyl(0.4, 0.4, 2.0, 20), M(c, { e: c, ei: 1.0, r: 0.2 }), x, Y + 1.25, room.z0 + 0.9); R.mesh(GEO.cyl(0.55, 0.55, 0.22, 24), M(0x475569, { m: 0.6, r: 0.35 }), x, Y + 2.7, room.z0 + 0.9); }
+    for (let i = 0; i < 3; i++) { R.rbox(M(0x0f172a, { cc: 1, r: 0.2 }), 1.5, 0.9, 0.1, 0.04, room.x1 - 1.2 - i * 1.8, Y + 1.9, room.z1 - 0.12); R.box(M(cc[i], { e: cc[i], ei: 0.9 }), 1.35, 0.75, 0.02, room.x1 - 1.2 - i * 1.8, Y + 1.9, room.z1 - 0.18); }
+    R.rbox(M(0xcbd5e1, { r: 0.4 }), 4.5, 1.0, 0.8, 0.05, room.x1 - 3.0, Y + 0.5, room.z1 - 0.7);
+    R.mesh(GEO.sphere(0.5, 18, 12), M(0x9ca3af, { r: 0.5 }), b.x, Y + 3.4, room.z0 + 0.2, 0, 0, 0, 1, 1, 0.25); [-1, 1].forEach((s) => R.mesh(GEO.sphere(0.28, 14, 10), M(0xf9a8d4, { r: 0.5 }), b.x + s * 0.42, Y + 3.82, room.z0 + 0.22, 0, 0, 0, 1, 1, 0.25));
+  } else if (kind === 'cave') {
+    const ice = M(0x7dd3fc, { e: 0x38bdf8, ei: 0.6, r: 0.1, cc: 1 }), ice2 = M(0xe0f2fe, { r: 0.15, cc: 1 });
+    for (let i = 0; i < 10; i++) { const x = room.x0 + 0.8 + (i % 5) * (ww - 1.6) / 4, z = i < 5 ? room.z0 + 0.6 : room.z1 - 0.6, h = 0.8 + (i * 37 % 10) / 10 * 1.4; R.mesh(GEO.cone(0.35, h, 6), i % 2 ? ice : ice2, x, Y + h / 2, z, 0, i, 0); R.mesh(GEO.cone(0.18, 0.8, 6), ice2, x + 0.3, Y + 5.9, z, Math.PI, 0, 0); }
+    for (let i = 0; i < 6; i++) R.mesh(GEO.rock(i, 1), M(0xbfdbfe, { r: 0.4, cc: 0.6 }), room.x0 + 1 + i * (ww - 2) / 5, Y + 0.25, b.z + (i % 2 ? 1.2 : -1.4), 0, i, 0, 0.4);
+    R.rbox(M(0x8b5a2b, { r: 0.8 }), 1.6, 0.5, 0.8, 0.08, room.x1 - 1.2, Y + 0.25, room.z1 - 1.4);
   } else {
     for (let i = 0; i < Math.floor(ww / 2.5); i++) { const x = room.x0 + 1.3 + i * 2.5; R.rbox(M(0xe9d8a6, { r: 0.7 }), 2.0, 2.2, 0.5, 0.04, x, Y + 1.1, room.z0 + 0.35); for (let k = 0; k < 6; k++) R.mesh(GEO.cyl(0.12, 0.12, 0.28, 14), M(cs[(k + i) % 5], { r: 0.3, m: 0.4 }), x - 0.75 + k * 0.3, Y + 0.6 + (k % 2) * 0.7, room.z0 + 0.72); }
     R.rbox(M(0xf1f5f9, { r: 0.4 }), 0.9, 1.1, 0.8, 0.1, room.x1 - 0.7, Y + 0.55, room.z1 - 0.7); R.mesh(GEO.cyl(0.28, 0.28, 0.06, 20), M(0x0f172a, { cc: 1 }), room.x1 - 0.7, Y + 0.7, room.z1 - 1.12, Math.PI / 2, 0, 0);
@@ -272,7 +312,7 @@ function makeRoom(W, scene, b, B, put, F, kind) {
   R.build(g, { cast: false });
   room.spawn = { x: b.x + (kind === 'bunker' ? 2 : 0.6), y: Y, z: b.z + (kind === 'bunker' ? 0 : -0.4) };
   const out = F.w(hl[0] + (hl[0] > 0 ? -1.5 : 1.5), hl[1]);
-  addPad(W, { x: hp[0], y: b.baseY + 0.25, z: hp[1], kind: 'down', label: kind === 'bunker' ? '☢️ BUNKER' : kind === 'subway' ? '🚇 SUBWAY' : kind === 'mine' ? '⛏️ MINE' : '⬇ BASEMENT', to: room.spawn, b, room });
+  addPad(W, { x: hp[0], y: b.baseY + 0.25, z: hp[1], kind: 'down', label: kind === 'bunker' ? '☢️ BUNKER' : kind === 'subway' ? '🚇 SUBWAY' : kind === 'mine' ? '⛏️ MINE' : kind === 'lab' ? '🧪 SECRET LAB' : kind === 'cave' ? '🧊 ICE CAVE' : '⬇ BASEMENT', to: room.spawn, b, room });
   addPad(W, { x: ex.x, y: Y, z: ex.z, kind: 'up', label: '⬆ GO UP', to: { x: out[0], y: b.baseY + 0.3, z: out[1] }, b, room });
   room.hatch = { x: hp[0], y: b.baseY + 0.25, z: hp[1] };
   b.room = room; W.rooms.push(room);

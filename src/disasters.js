@@ -7,30 +7,33 @@ import { M, glow } from './mats.js';
 import { groundAt, buildingAt, tableAt, nearestBuildingDist, UNDER, onRoof } from './world.js';
 
 export const ORDER = ['kaiju', 'lightning', 'meteor', 'tornado', 'flood', 'quake', 'volcano', 'blizzard', 'alien'];
-const R = Math.random, d2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
-function segDist(px, pz, x0, z0, x1, z1) { const dx = x1 - x0, dz = z1 - z0, L = dx * dx + dz * dz || 1; const t = Math.max(0, Math.min(1, ((px - x0) * dx + (pz - z0) * dz) / L)); return Math.hypot(px - (x0 + dx * t), pz - (z0 + dz * t)); }
+export const DLC_ORDER = ['acid', 'dragon', 'dino']; // Super Thunder Expansion (defined in dlcdz.js, merged into DZ at boot)
+export const HOOKS = { owned: () => false, draw: null, fx: null, reset: null }; // set by the DLC module
+export const allOrder = () => HOOKS.owned() ? ORDER.concat(DLC_ORDER) : ORDER;
+const R = Math.random; export const d2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+export function segDist(px, pz, x0, z0, x1, z1) { const dx = x1 - x0, dz = z1 - z0, L = dx * dx + dz * dz || 1; const t = Math.max(0, Math.min(1, ((px - x0) * dx + (pz - z0) * dz) / L)); return Math.hypot(px - (x0 + dx * t), pz - (z0 + dz * t)); }
 export function shelter(W, p) {
   const under = p.y < UNDER + 8, b = under ? null : buildingAt(W, p.x, p.y, p.z);
   return { under, b, sturdy: !!(b && b.sturdy), table: b ? tableAt(W, p.x, p.y, p.z) : null, roof: under ? null : onRoof(W, p.x, p.y, p.z), out: !under && !b, fire: W.fires.some((f) => (!f.b || !f.b.wrecked) && Math.hypot(p.x - f.x, p.z - f.z) < f.r && Math.abs(p.y - f.y) < 2) };
 }
-function hatchTargets(W) { return W.rooms.map((r) => ({ kind: 'pad', b: r.b, pad: W.pads.find((q) => q.room === r && q.kind === 'down'), x: r.hatch.x, y: r.hatch.y, z: r.hatch.z, label: r.name, under: true })); }
-function indoorTargets(W, sturdyOnly) { return W.buildings.filter((b) => !b.wrecked && (!sturdyOnly || b.sturdy)).map((b) => ({ kind: 'in', b, x: b.x, y: b.baseY + 0.2, z: b.z, label: b.name })); }
-function highTargets(W) {
+export function hatchTargets(W) { return W.rooms.map((r) => ({ kind: 'pad', b: r.b, pad: W.pads.find((q) => q.room === r && q.kind === 'down'), x: r.hatch.x, y: r.hatch.y, z: r.hatch.z, label: r.name, under: true })); }
+export function indoorTargets(W, sturdyOnly) { return W.buildings.filter((b) => !b.wrecked && (!sturdyOnly || b.sturdy)).map((b) => ({ kind: 'in', b, x: b.x, y: b.baseY + 0.2, z: b.z, label: b.name })); }
+export function highTargets(W) {
   const out = [];
   W.buildings.forEach((b) => { if (b.elevator && !b.wrecked) { const pad = b.pads.find((q) => q.kind === 'elev'); out.push({ kind: 'pad', b, pad, x: pad.x, y: pad.y, z: pad.z, label: b.name + ' roof', high: true }); } });
   W.high.filter((h) => !h.b).forEach((h) => out.push({ kind: 'high', x: h.x, y: h.y, z: h.z, foot: h.foot, label: h.label }));
   return out;
 }
-function tableTargets(W) { return W.tables.filter((t) => !t.b || (!t.b.wrecked && !t.b.sturdy) || (t.b && t.b.sturdy)).filter((t) => !t.b || !t.b.wrecked).map((t) => ({ kind: 'table', b: t.b, x: t.x, y: t.y, z: t.z, label: 'under a table' })); }
-function openTargets(W) { if (W._open) return W._open; const o = []; for (let x = -60; x <= 60; x += 6) for (let z = -60; z <= 60; z += 6) { if (Math.abs(W.terrain(x, z)) > 1.5) continue; if (nearestBuildingDist(W, x, z) > 9) o.push({ kind: 'open', x, y: W.terrain(x, z), z, label: 'open ground' }); } return (W._open = o); }
-const outdoorPlayers = (S, W) => S.players.filter((p) => p.st === 'ok' && shelter(W, p).out);
-function pickAim(S, W, spread, bias = 0.55) {
+export function tableTargets(W) { return W.tables.filter((t) => !t.b || (!t.b.wrecked && !t.b.sturdy) || (t.b && t.b.sturdy)).filter((t) => !t.b || !t.b.wrecked).map((t) => ({ kind: 'table', b: t.b, x: t.x, y: t.y, z: t.z, label: 'under a table' })); }
+export function openTargets(W) { if (W._open) return W._open; const o = []; for (let x = -60; x <= 60; x += 6) for (let z = -60; z <= 60; z += 6) { if (Math.abs(W.terrain(x, z)) > 1.5) continue; if (nearestBuildingDist(W, x, z) > 9) o.push({ kind: 'open', x, y: W.terrain(x, z), z, label: 'open ground' }); } return (W._open = o); }
+export const outdoorPlayers = (S, W) => S.players.filter((p) => p.st === 'ok' && shelter(W, p).out);
+export function pickAim(S, W, spread, bias = 0.55) {
   const out = outdoorPlayers(S, W);
   if (out.length && R() < bias) { const p = out[(R() * out.length) | 0]; return { x: p.x + (R() - 0.5) * spread, z: p.z + (R() - 0.5) * spread }; }
   const h = W.half - 8; return { x: (R() - 0.5) * 2 * h * 0.8, z: (R() - 0.5) * 2 * h * 0.8 };
 }
-function addHaz(S, h) { h.i = S.hid = (S.hid || 0) + 1; h.t = 0; S.haz.push(h); return h; }
-const topY = (W, x, z) => groundAt(W, x, z, 200);
+export function addHaz(S, h) { h.i = S.hid = (S.hid || 0) + 1; h.t = 0; S.haz.push(h); return h; }
+export const topY = (W, x, z) => groundAt(W, x, z, 200);
 
 export const DZ = {
   kaiju: {
@@ -218,7 +221,7 @@ export const DZ = {
   }
 };
 export function pickRandom(W, last) {
-  const pool = []; ORDER.forEach((id) => { if (id === last) return; pool.push(id); if (id === 'alien' && W.id === 'area51') pool.push(id); if (id === 'flood' && W.id === 'beach') pool.push(id); if (id === 'volcano' && W.id === 'pine') pool.push(id); if (id === 'blizzard' && W.id === 'pine') pool.push(id); if (id === 'kaiju' && W.id === 'city') pool.push(id); });
+  const pool = []; allOrder().forEach((id) => { if (id === last || !DZ[id]) return; pool.push(id); if (id === 'alien' && W.id === 'area51') pool.push(id); if (id === 'flood' && W.id === 'beach') pool.push(id); if (id === 'volcano' && (W.id === 'pine' || W.id === 'dinov')) pool.push(id); if (id === 'blizzard' && (W.id === 'pine' || W.id === 'frost')) pool.push(id); if (id === 'kaiju' && W.id === 'city') pool.push(id); if (id === 'dino' && W.id === 'dinov') pool.push(id, id); if (id === 'dragon' && W.id === 'frost') pool.push(id); if (id === 'acid' && W.id === 'ratita') pool.push(id, id); });
   return pool[(R() * pool.length) | 0];
 }
 export function dzName(id, W) { if (id === 'flood' && W && W.sea == null) return 'FLASH FLOOD'; return DZ[id].name; }
@@ -227,7 +230,7 @@ export function dzName(id, W) { if (id === 'flood' && W && W.sea == null) return
 const V = { kaiju: null, ufos: [], tors: [], volc: null, cracks: [], torDebris: null };
 export function resetVisuals() {
   if (V.kaiju) V.kaiju.root.visible = false; V.ufos.forEach((u) => u.visible = false); V.tors.forEach((t) => t.visible = false);
-  if (V.volc) V.volc.visible = false; V.cracks.forEach((c) => G.scene.remove(c)); V.cracks = [];
+  if (V.volc) V.volc.visible = false; V.cracks.forEach((c) => G.scene.remove(c)); V.cracks = []; HOOKS.reset && HOOKS.reset();
   FX.water.visible = false; FX.foam.visible = false; FX.wave.visible = false; FX.lava.visible = false;
 }
 export function drawDisaster(S, W, dt) {
@@ -289,15 +292,16 @@ export function drawDisaster(S, W, dt) {
   // hazards telegraphs
   for (const h of S.haz) {
     const u = Math.min(1, h.t / h.T);
-    if (h.k === 'beam' || h.k === 'crack') line('h' + h.i, h.x, h.z, h.x1, h.z1, (h.y || 0) + 0.05, h.r * 2, h.k === 'beam' ? 0xff2d55 : 0xff8800);
+    if (h.k === 'beam' || h.k === 'crack' || h.k === 'flame' || h.k === 'stampede') line('h' + h.i, h.x, h.z, h.x1, h.z1, (h.y || 0) + 0.05, h.r * 2, h.k === 'beam' || h.k === 'flame' ? 0xff2d55 : h.k === 'stampede' ? 0xff5a1f : 0xff8800);
     else if (h.k === 'collapse') ring('h' + h.i, h.x, h.y + 0.3, h.z, h.r, 0xff8800, u);
-    else ring('h' + h.i, h.x, h.y, h.z, h.r, h.k === 'strike' ? 0xffe14d : h.k === 'junk' ? 0xff8800 : 0xff2d55, u);
+    else ring('h' + h.i, h.x, h.y, h.z, h.r, h.k === 'strike' ? 0xffe14d : h.k === 'junk' ? 0xff8800 : h.k === 'goo' ? 0x84cc16 : h.k === 'hail' ? 0x7dd3fc : 0xff2d55, u);
     if (h.k === 'collapse') { const b = W.buildings.find((q) => q.id === h.b); if (b && !b.wrecked && Math.random() < 0.3) puff(b.x + (Math.random() - 0.5) * b.w, b.baseY + b.h, b.z + (Math.random() - 0.5) * b.d, 1, 0xc9b79c, { s: 0.4, s1: 1.2, up: -1 }); }
     if (h.k === 'junk' && u > 0.5 && !h.vis) { h.vis = 1; debris(h.x, (h.y || 0) + 4, h.z, 4, [0xd4a373, 0x9ca3af, 0xef476f], { sp: 1, up: -2, s: 0.5, floor: h.y || 0 }); }
   }
   // cracks
   if (e.cracks && S.dz === 'quake' && S.phase === 'active') { while (V.cracks.length < e.cracks.length) { const c = e.cracks[V.cracks.length]; const m = new THREE.Mesh(GEO.box(1, 1, 1), M(0x2a1d14, { r: 1 })); const L = Math.hypot(c[2] - c[0], c[3] - c[1]); m.scale.set(1.0, 0.1, L); m.position.set((c[0] + c[2]) / 2, c[4] + 0.03, (c[1] + c[3]) / 2); m.rotation.y = Math.atan2(c[2] - c[0], c[3] - c[1]); G.scene.add(m); V.cracks.push(m); } }
   else if (V.cracks.length && S.phase !== 'active') { V.cracks.forEach((c) => G.scene.remove(c)); V.cracks = []; }
+  HOOKS.draw && HOOKS.draw(S, W, dt);
 }
 // one-shot effect events (host + guests)
 export function playFx(ev, W, SFX) {
@@ -315,4 +319,5 @@ export function playFx(ev, W, SFX) {
   else if (k === 'revive') { sparks(ev.x, ev.y + 1, ev.z, 24, 0x4ade80, { sp: 4, g: -2 }); }
   else if (k === 'coin') { sparks(ev.x, ev.y + 0.5, ev.z, 8, 0xffd23f, { sp: 3, g: 4 }); }
   else if (k === 'sfx') { SFX[ev.n] && SFX[ev.n](); }
+  else if (HOOKS.fx) HOOKS.fx(ev, W, SFX);
 }

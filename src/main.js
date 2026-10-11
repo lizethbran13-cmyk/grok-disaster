@@ -5,7 +5,9 @@ import { buildMap, MAPS } from './maps.js';
 import { makeSurvivor, animSurvivor, setHat, setJetpack } from './models.js';
 import { setupAmbient, updateAmbient, clearAmbient } from './ambient.js';
 import { initFX, updateFX, beginTele, endTele, clearFX, FX, puff, bakeWaterHeight } from './fx.js';
-import { DZ, ORDER, shelter, drawDisaster, playFx, resetVisuals, dzName } from './disasters.js';
+import { DZ, ORDER, DLC_ORDER, allOrder, shelter, drawDisaster, playFx, resetVisuals, dzName } from './disasters.js';
+import { installDLC, DLC, ARCADE, setGuestCheck } from './dlcdz.js';
+import { Hunt, CASES } from './hunt.js';
 import { S, H, startRound, hostTick, movePlayer, usePad, nearestSafe, pickNext, maxHp, newPlayer, msg } from './sim.js';
 import { padAt, UNDER, buildingAt, groundAt, roomAt } from './world.js';
 import { wreckBuilding, repairBuilding } from './build.js';
@@ -20,6 +22,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const Q = new URLSearchParams(location.search);
 const App = window.__dz = { ready: false, mode: 'menu', W: null, S, G, I, me: null, myPid: 'me', models: new Map(), paused: false, simSpeed: 1 };
 load();
+installDLC(); setGuestCheck(() => App.mode === 'guest');
 initGfx($('c'));
 // graphics are never downgraded automatically any more. Older versions could silently flip a phone to LOW, so
 // that saved LOW is cleared once; LOW now only ever comes from the player picking it in Settings.
@@ -60,7 +63,7 @@ function drawSurvivors(dt) {
     animSurvivor(m, st, dt, src.sp || 0, G.t + p.id);
     m.bubble.visible = p.sh > 0; if (m.bubble.visible) m.bubble.scale.setScalar(1 + Math.sin(G.t * 8) * 0.04);
     m.flames.visible = !!src.jetOn; if (src.jetOn && Math.random() < 0.5) puff(m.root.position.x, m.root.position.y + 0.6, m.root.position.z, 1, [0xffb347, 0xffffff], { sp: 0.5, up: -3, s: 0.2, s1: 0.5, life: 0.4 });
-    const wet = (S.dz === 'blizzard' || S.dz === 'lightning' || S.dz === 'volcano') && S.phase === 'active';
+    const wet = ((S.dz === 'blizzard' || S.dz === 'lightning' || S.dz === 'volcano' || S.dz === 'acid' || S.dz === 'dragon') && S.phase === 'active') || (App.mode === 'hunt' && Hunt.C && !Hunt.C.solved);
     m.umbrella.visible = !!(p.upg && p.upg.umbrella) && wet && st !== 'ko' && st !== 'swim';
     m.root.visible = !(p.inv > 0 && p.st === 'ok' && Math.floor(G.t * 12) % 2 === 0);
   }
@@ -141,13 +144,13 @@ App.startHosted = function (mapId, humans) { // online host
   initAudio(); const W = loadMap(mapId);
   startRound(W, W.root, mapId, humans, 5);
   App.mode = 'host'; App.myPid = Net.room.pid; App.me = S.players.find((p) => p.pid === App.myPid); enterGame();
-  Net.broadcast({ t: 'start', map: mapId, players: S.players.map((p) => ({ id: p.id, pid: p.pid, name: p.name, cpu: p.cpu, look: p.look, upg: p.upg })) });
+  Net.broadcast({ t: 'start', map: mapId, dlc: DLC.owned() ? 1 : 0, players: S.players.map((p) => ({ id: p.id, pid: p.pid, name: p.name, cpu: p.cpu, look: p.look, upg: p.upg })) });
 };
 App.startGuest = function (d) {
   initAudio(); const W = loadMap(d.map); W.buildings.forEach((b) => repairBuilding(W, b));
   Object.assign(S, { phase: 'calm', t: 14, wave: 0, waves: 5, map: d.map, haz: [], env: {}, wrecked: [], coins: [], fx: [], msgs: [] });
   S.players = d.players.map((p) => newPlayer(p)); S.players.forEach((p) => { p.max = maxHp(p.upg); p.hp = p.max; const s = W.spawns[p.id % 4]; p.x = s[0]; p.z = s[1]; p.y = 0.3; });
-  App.mode = 'guest'; App.myPid = Net.room.pid; const mine = S.players.find((p) => p.pid === App.myPid);
+  DLC.hostShared = !!d.dlc; App.mode = 'guest'; App.myPid = Net.room.pid; const mine = S.players.find((p) => p.pid === App.myPid);
   App.me = newPlayer(Object.assign({}, mine)); App.me.upg = myUpg(); App.lastMsg = 0; App.wreckSeen = new Set(); App.tpN = mine.tpN;
   enterGame();
 };
@@ -161,6 +164,7 @@ function enterGame() {
 }
 App.quit = function () {
   if (App.mode === 'host' || App.mode === 'guest') Net.leave();
+  if (Hunt.on) Hunt.stop(); DLC.hostShared = false; FX.arrow.visible = false; FX.beacon.visible = false;
   App.mode = 'menu'; App.me = null; S.phase = 'lobby'; S.players = []; S.haz = []; S.env = {}; I.enabled = false;
   App.W.buildings.forEach((b) => repairBuilding(App.W, b)); resetVisuals(); clearFX(); ambienceOff();
   $('hud').classList.add('hidden'); hidePanels(); showTitle();
@@ -177,14 +181,14 @@ function handleMsgs(list) {
 }
 App.onWaveStats = function (st) { // my stats for the finished wave
   if (!st) return; const s = SV.d.stats;
-  if (!st.ko) { s.waves++; s.survived[st.id] = (s.survived[st.id] || 0) + 1; achieve('first'); if (st.id === 'kaiju') achieve('kaiju'); if (st.under && App.W.id === 'area51' && App.me && App.W.rooms.some((r) => r.kind === 'bunker')) achieve('bunker'); if (st.id === 'flood' && st.high) achieve('dry'); if (ORDER.every((id) => s.survived[id])) achieve('allnine'); }
+  if (!st.ko) { s.waves++; s.survived[st.id] = (s.survived[st.id] || 0) + 1; achieve('first'); if (st.id === 'kaiju') achieve('kaiju'); if (st.under && App.W.id === 'area51' && App.me && App.W.rooms.some((r) => r.kind === 'bunker')) achieve('bunker'); if (st.id === 'flood' && st.high) achieve('dry'); if (ORDER.every((id) => s.survived[id])) achieve('allnine'); if (DZ[st.id] && DZ[st.id].dlc) achieve(st.id); if (DLC.owned() && ORDER.concat(DLC_ORDER).every((id) => s.survived[id])) achieve('storm12'); }
   else { s.kos++; App.roundKO = true; }
   if (st.beamed) achieve('beamed');
   if (st.helped) { s.revives += st.helped; if (s.revives >= 5) achieve('helper'); }
   if (s.earned >= 1000) achieve('rich');
   save();
 };
-App.onRoundEnd = function () { const s = SV.d.stats; s.rounds++; if (!App.roundKO) achieve('perfect'); if (s.rounds >= 10) achieve('rounds10'); save(); setTimeout(showResults, 1200); };
+App.onRoundEnd = function () { const s = SV.d.stats; s.rounds++; if (!App.roundKO) achieve('perfect'); if (s.rounds >= 10) achieve('rounds10'); save(); setTimeout(() => { if (S.phase === 'results' && App.mode !== 'menu' && App.mode !== 'hunt') showResults(); }, 1200); };
 H.hooks.waveEnd = () => { S.players.forEach((p) => { if (p.cpu || !p.stats) return; if (p.pid === App.myPid) App.onWaveStats(p.stats); else Net.sendTo(p.pid, { t: 'wave', st: p.stats }); p.helped = 0; p.beamed = false; }); };
 H.hooks.roundEnd = () => { App.onRoundEnd(); if (App.mode === 'host') Net.broadcast({ t: 'end' }); };
 function achieve(id) { const a = unlock(id); if (a) { SFX.achieve(); toast(a.icon + ' Achievement: ' + a.name + '!', 'ach'); } }
@@ -193,7 +197,7 @@ let last = performance.now(), snapAcc = 0, poseAcc = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (App.paused && App.mode === 'solo') dt = 0;
+  if (App.paused && (App.mode === 'solo' || App.mode === 'hunt')) dt = 0;
   step(dt);
   render(dt);
 }
@@ -206,6 +210,9 @@ function step(dt) {
     if (S.msgs.length) handleMsgs(S.msgs);
     if (App.mode === 'host') { Net.queue(S.fx, S.msgs); snapAcc += dt; if (snapAcc > 0.1) { snapAcc = 0; Net.snapshot(); } }
     S.fx = []; S.msgs = [];
+  } else if (App.mode === 'hunt') {
+    localControl(dt); Hunt.tick(dt);
+    if (S.fx.length) handleFx(S.fx); S.fx = []; S.msgs = [];
   } else if (App.mode === 'guest') {
     localControl(dt);
     for (const h of S.haz) h.t = Math.min(h.T, h.t + dt);
@@ -220,7 +227,7 @@ function step(dt) {
   }
   updateCamera(dt);
   cullDetail();
-  if (App.mode !== 'menu') { updateHud(dt); sounds(); }
+  if (App.mode !== 'menu') { updateHud(dt); if (App.mode === 'hunt') Hunt.hud(); sounds(); }
 }
 let cullT = 0;
 function cullDetail() { // interiors only near you, underground rooms only while you're down there
@@ -231,12 +238,12 @@ function cullDetail() { // interiors only near you, underground rooms only while
   farCull(W, G.camera);
 }
 function weatherNow() {
-  const e = S.env || {}, on = S.phase === 'active'; const under = App.me && App.me.y < UNDER + 8;
-  return { rain: on && !under ? e.rain || 0 : 0, snow: on && !under ? e.snow || 0 : 0, ash: on && !under ? e.ash || 0 : 0, hail: on && !under ? e.hail || 0 : 0, wind: e.wind || 0, groundY: App.me ? Math.max(0, groundAt(App.W, App.me.x, App.me.z, 200)) : 0 };
+  const e = S.env || {}, on = S.phase === 'active' || S.phase === 'hunt'; const under = App.me && App.me.y < UNDER + 8;
+  return { acid: on && !under ? e.acid || 0 : 0, rain: on && !under ? e.rain || 0 : 0, snow: on && !under ? e.snow || 0 : 0, ash: on && !under ? e.ash || 0 : 0, hail: on && !under ? e.hail || 0 : 0, wind: e.wind || 0, groundY: App.me ? Math.max(0, groundAt(App.W, App.me.x, App.me.z, 200)) : 0 };
 }
-function sounds() { const e = S.env || {}, on = S.phase === 'active', under = App.me && App.me.y < UNDER + 8, v = under ? 0.3 : 1; ambience('wind', on ? Math.min(0.5, (e.wind || 0) * 0.05) * v : 0.02); ambience('rain', on ? (e.rain || 0) * 0.25 * v : 0); ambience('rumble', ((e.shake || 0) * 0.6)); }
+function sounds() { const e = S.env || {}, on = S.phase === 'active' || S.phase === 'hunt', under = App.me && App.me.y < UNDER + 8, v = under ? 0.3 : 1; ambience('wind', on ? Math.min(0.5, (e.wind || 0) * 0.05) * v : 0.02); ambience('rain', on ? (e.rain || 0) * 0.25 * v : 0); ambience('rumble', ((e.shake || 0) * 0.6)); }
 /* ---------------- moods per phase ---------------- */
-function moodFor() { if (S.phase === 'active' || (S.phase === 'warn' && S.dz)) return DZ[S.dz].mood; return App.W.meta.mood; }
+function moodFor() { if (App.mode === 'hunt') return Hunt.mood(); if (S.phase === 'active' || (S.phase === 'warn' && S.dz)) return DZ[S.dz].mood; return App.W.meta.mood; }
 /* ---------------- HUD ---------------- */
 function buildHud() {
   const h = document.createElement('div'); h.id = 'hud'; h.className = 'hidden';
@@ -329,7 +336,7 @@ App.toast = toast;
 function panel(html, bind, o = {}) {
   hidePanels(); const w = document.createElement('div'); w.className = 'panelWrap'; w.id = 'panel'; w.innerHTML = '<div class="panel">' + html + '</div>'; $('ui').appendChild(w);
   w.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { SFX.click(); hidePanels(); o.onClose && o.onClose(); }));
-  bind && bind(w); App.panelName = o.name || 'panel'; if (App.mode === 'solo' && o.pause) App.paused = true; return w;
+  bind && bind(w); App.panelName = o.name || 'panel'; if ((App.mode === 'solo' || App.mode === 'hunt') && o.pause) App.paused = true; return w;
 }
 function hidePanels() { const p = $('panel'); if (p) p.remove(); App.paused = false; App.panelName = null; }
 App.hidePanels = hidePanels;
@@ -342,7 +349,8 @@ function buildTitle() {
   t.innerHTML = `<div style="width:100%"><div id="topbar"><span class="pill"><span class="coinIc">★</span><span id="titleCoins">0</span></span><button class="btn gray small" id="tGfx">⚙️</button></div>
   <div class="logo" style="margin-top:56px"><div class="l1">GROK</div><div class="l2">DISASTER ZONE</div><div class="tag">Survive kaiju, tornadoes, meteors & more!</div></div></div>
   <div class="menuCol"><button class="btn green" id="tPlay" style="font-size:24px;padding:18px">▶ PLAY</button><button class="btn pink" id="tOnline">🤝 PLAY WITH FRIENDS</button>
-  <div class="menuRow"><button class="btn gold" id="tShop">🛒 SHOP</button><button class="btn purple" id="tTroph">🏆 TROPHIES</button></div><button class="btn" id="tHow">❓ HOW TO PLAY</button></div>`;
+  <div class="menuRow"><button class="btn gold" id="tShop">🛒 SHOP</button><button class="btn purple" id="tTroph">🏆 TROPHIES</button></div><button class="btn" id="tHow">❓ HOW TO PLAY</button>
+  <button class="btn dlcBtn" id="tHunt">🌨️ WEATHER HUNTER <span class="dlcTag" id="tHuntTag">DLC</span></button><button class="btn dlcBtn2" id="tDlc">⚡ SUPER THUNDER EXPANSION <span id="tDlcTag"></span></button></div>`;
   $('ui').appendChild(t);
   $('tPlay').onclick = () => { SFX.click(); initAudio(); showMapPick(); };
   $('tOnline').onclick = () => { SFX.click(); initAudio(); Net.lobby(); };
@@ -350,20 +358,34 @@ function buildTitle() {
   $('tTroph').onclick = () => { SFX.click(); showTrophies(); };
   $('tHow').onclick = () => { SFX.click(); showHowTo(); };
   $('tGfx').onclick = () => { SFX.click(); showSettings(); };
+  $('tHunt').onclick = () => { SFX.click(); initAudio(); if (!DLC.owned()) return dlcInfo(); Hunt.pick(App); };
+  $('tDlc').onclick = () => { SFX.click(); dlcInfo(); };
+  dlcBadges(); setInterval(dlcBadges, 1500); addEventListener('storage', (e) => { if (!e.key || e.key === 'grokDLC.disaster.super_thunder_expansion' || e.key === 'grokDLC.owned') dlcBadges(); });
 }
+let dlcWas = null;
+function dlcBadges() { const own = DLC.owned(); const a = $('tHuntTag'), b = $('tDlcTag'); if (a) a.textContent = own ? 'NEW' : '🔒 DLC'; if (b) b.textContent = own ? '✅' : '🔒'; if (dlcWas === false && own) toast('⚡ Super Thunder Expansion unlocked! New disasters, 3 maps and Weather Hunter!', 'ach'); dlcWas = own; }
+function dlcInfo() {
+  const own = DLC.owned();
+  panel(`<div class="big">⚡</div><h2>SUPER THUNDER EXPANSION</h2><p class="sub">${own ? '✅ You own it! Everything below is unlocked.' : 'MEGA Expansion · unlock it for <b>200 tickets</b> in the Grok Arcade DLC Shop.'}</p>
+  <h3>3 NEW DISASTERS</h3><div class="howto"><div class="row"><span>🧪</span><p><b>ACID STORM</b>: green goo rain and puddles. Hide in sturdy buildings!</p></div><div class="row"><span>🐉</span><p><b>DRAGON ATTACK</b>: EMBERWING swoops in with fire breath. Wooden houses burn!</p></div><div class="row"><span>🦖</span><p><b>DINO DESTRUCTION</b>: REXY the T-rex and trike stampedes. Dinos can't climb, so get up high!</p></div></div>
+  <h3>3 NEW MAPS</h3><div class="howto"><div class="row"><span>🐭</span><p><b>Ratita HQ</b>: glass tower, labs, gadget factory, rocket hangar and a Secret Lab.</p></div><div class="row"><span>❄️</span><p><b>Frostbite Village</b>: cozy cabins, frozen lake, observatory and an Ice Cave.</p></div><div class="row"><span>🦕</span><p><b>Dino Valley</b>: dino museum, hatchery, jungle hotel and a smoking volcano.</p></div></div>
+  <h3>NEW MODE: WEATHER HUNTER 🌨️</h3><p class="sub" style="text-align:left">Ratita Industries hires you as a meteorologist! Scan storm swirls, plant probes, launch weather balloons and solve 3 blizzard mysteries. Earn the Weather Hunter Hat.</p>
+  <div class="btnrow"><button class="btn gray" data-close>BACK</button>${own ? '<button class="btn green" id="dHunt">🌨️ PLAY WEATHER HUNTER</button>' : `<a class="btn gold" href="${ARCADE}" target="_blank" rel="noopener">🎟️ OPEN GROK ARCADE</a>`}</div>`, (w) => { const h = w.querySelector('#dHunt'); if (h) h.onclick = () => Hunt.pick(App); }, { name: 'dlc', pause: true });
+}
+App.dlcInfo = dlcInfo;
 function showMapPick(online) {
   let sel = App.W ? App.W.id : 'area51';
-  const draw = () => panel(`<h2>🗺️ PICK A MAP</h2><p class="sub">Disasters are random, or pay coins between waves to pick the next one!</p><div class="cards">${MAPS.map((m) => `<div class="card ${m.id === sel ? 'sel' : ''}" data-m="${m.id}"><div class="em">${m.emoji}</div><b>${m.name}</b><small>${m.desc}</small></div>`).join('')}</div>
+  const draw = () => panel(`<h2>🗺️ PICK A MAP</h2><p class="sub">Disasters are random, or pay coins between waves to pick the next one!</p><div class="cards">${MAPS.map((m) => `<div class="card ${m.id === sel ? 'sel' : ''} ${m.dlc ? 'dlc' : ''}" data-m="${m.id}">${m.dlc ? `<span class="dlcTag">${DLC.can() ? '⚡ NEW' : '🔒 DLC'}</span>` : ''}<div class="em">${m.emoji}</div><b>${m.name}</b><small>${m.desc}</small></div>`).join('')}</div>
     <div class="btnrow"><button class="btn gray" data-close>BACK</button><button class="btn green" id="mGo">${online ? 'START FOR ALL' : 'START!'}</button></div>`, (w) => {
     w.querySelectorAll('[data-m]').forEach((c) => c.onclick = () => { SFX.click(); sel = c.dataset.m; loadMap(sel); draw(); });
-    $('mGo').onclick = () => { SFX.click(); hidePanels(); if (online) Net.start(sel); else App.startSolo(sel); };
+    $('mGo').onclick = () => { SFX.click(); const m = MAPS.find((q) => q.id === sel); if (m && m.dlc && !DLC.can()) { toast('🔒 This map is in the Super Thunder Expansion (look around for free!)'); return dlcInfo(); } hidePanels(); if (online) Net.start(sel); else App.startSolo(sel); };
   }, { name: 'maps', onClose: online ? () => Net.roomPanel() : null });
   draw();
 }
 App.showMapPick = showMapPick;
 function showPicker() {
   if (S.phase !== 'calm') return; const cost = 40;
-  panel(`<h2>🎯 PICK THE NEXT DISASTER</h2><p class="sub">Costs <b>${cost}</b> coins. You have <b>${SV.d.coins}</b>.</p><div class="dzGrid">${ORDER.map((id) => `<button data-d="${id}"><span>${DZ[id].icon}</span>${dzName(id, App.W)}</button>`).join('')}</div><div class="btnrow"><button class="btn gray" data-close>KEEP RANDOM</button></div>`, (w) => {
+  panel(`<h2>🎯 PICK THE NEXT DISASTER</h2><p class="sub">Costs <b>${cost}</b> coins. You have <b>${SV.d.coins}</b>.</p><div class="dzGrid">${allOrder().map((id) => `<button data-d="${id}"><span>${DZ[id].icon}</span>${dzName(id, App.W)}</button>`).join('')}</div><div class="btnrow"><button class="btn gray" data-close>KEEP RANDOM</button></div>`, (w) => {
     w.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => {
       if (SV.d.coins < cost) { toast('Not enough coins! Survive more waves 💪'); return; }
       if (S.phase !== 'calm') return hidePanels();
@@ -375,13 +397,14 @@ App.showPicker = showPicker;
 function showShop(tab = 'upg') {
   const d = SV.d;
   const upg = SHOP.map((it) => { const L = lvl(it.id), max = it.prices.length, price = it.prices[L]; return `<div class="item"><div class="ic">${it.icon}</div><div class="grow"><b>${it.name}</b><small>${it.desc}</small><div class="lv">${it.prices.map((_, i) => `<i class="${i < L ? 'on' : ''}"></i>`).join('')}</div></div>${L >= max ? '<button class="btn gray small" disabled>MAX</button>' : `<button class="btn gold small" data-buy="${it.id}">${price}</button>`}</div>`; }).join('');
-  const hats = HATSHOP.map((h) => { const own = d.hats.includes(h.id), on = d.look.hat === h.id; return `<div class="item"><div class="ic">${{ cap: '🧢', beanie: '🧶', party: '🥳', cowboy: '🤠', chef: '👨‍🍳', dino: '🦖', astro: '👩‍🚀', crown: '👑', none: '🙂' }[h.id]}</div><div class="grow"><b>${h.name}</b></div>${on ? '<button class="btn green small" disabled>ON</button>' : own ? `<button class="btn small" data-hat="${h.id}">WEAR</button>` : `<button class="btn gold small" data-hatbuy="${h.id}">${h.price}</button>`}</div>`; }).join('');
+  const hats = HATSHOP.map((h) => { const own = d.hats.includes(h.id), on = d.look.hat === h.id, lock = h.dlc && !DLC.owned() && !own; return `<div class="item"><div class="ic">${{ cap: '🧢', beanie: '🧶', party: '🥳', cowboy: '🤠', chef: '👨‍🍳', dino: '🦖', astro: '👩‍🚀', crown: '👑', none: '🙂', ratears: '🐭', meteo: '🌨️' }[h.id]}</div><div class="grow"><b>${h.name}</b>${h.dlc ? ' <span class="dlcTag">⚡ DLC</span>' : ''}${h.reward && !own ? `<small>${h.reward}</small>` : ''}</div>${on ? '<button class="btn green small" disabled>ON</button>' : own ? `<button class="btn small" data-hat="${h.id}">WEAR</button>` : lock ? '<button class="btn gray small" data-dlc="1">🔒</button>' : h.reward ? '<button class="btn gray small" disabled>🔒</button>' : `<button class="btn gold small" data-hatbuy="${h.id}">${h.price}</button>`}</div>`; }).join('');
   const hex = (n) => '#' + n.toString(16).padStart(6, '0');
   const cols = `<h3>SHIRT</h3><div class="swatches">${SHIRTS.map((c) => `<button data-shirt="${c}" class="${d.look.shirt === c ? 'on' : ''}" style="background:${hex(c)}"></button>`).join('')}</div><h3>HAT COLOR</h3><div class="swatches">${SHIRTS.map((c) => `<button data-hc="${c}" class="${d.look.hatColor === c ? 'on' : ''}" style="background:${hex(c)}"></button>`).join('')}</div><h3>SKIN</h3><div class="swatches">${[0xf6c9a0, 0xe0a979, 0xb97a4f, 0x8a5a3b, 0xffd9b8].map((c) => `<button data-skin="${c}" class="${d.look.skin === c ? 'on' : ''}" style="background:${hex(c)}"></button>`).join('')}</div><h3>NAME</h3><input class="name" id="nameIn" maxlength="12" placeholder="Your name" value="${esc(d.name)}">`;
   panel(`<h2>🛒 SHOP</h2><p class="sub"><span class="pill"><span class="coinIc">★</span>${d.coins}</span></p><div class="tabs"><button data-tab="upg" class="${tab === 'upg' ? 'on' : ''}">⬆️ UPGRADES</button><button data-tab="hats" class="${tab === 'hats' ? 'on' : ''}">🎩 HATS</button><button data-tab="look" class="${tab === 'look' ? 'on' : ''}">🎨 LOOK</button></div>${tab === 'upg' ? upg : tab === 'hats' ? hats : cols}<div class="btnrow"><button class="btn gray" data-close>DONE</button></div>`, (w) => {
     w.querySelectorAll('[data-tab]').forEach((b) => b.onclick = () => { SFX.click(); showShop(b.dataset.tab); });
     w.querySelectorAll('[data-buy]').forEach((b) => b.onclick = () => { const it = SHOP.find((x) => x.id === b.dataset.buy), L = lvl(it.id), pr = it.prices[L]; if (d.coins < pr) return toast('Not enough coins yet!'); addCoins(-pr); d.upg[it.id] = L + 1; save(); SFX.cash(); toast('✨ ' + it.name + ' Lv' + (L + 1) + '!', 'gold'); applyMyUpgrades(); showShop('upg'); });
     w.querySelectorAll('[data-hatbuy]').forEach((b) => b.onclick = () => { const h = HATSHOP.find((x) => x.id === b.dataset.hatbuy); if (d.coins < h.price) return toast('Not enough coins yet!'); addCoins(-h.price); d.hats.push(h.id); d.look.hat = h.id; save(); SFX.cash(); applyMyLook(); showShop('hats'); });
+    w.querySelectorAll('[data-dlc]').forEach((b) => b.onclick = () => dlcInfo());
     w.querySelectorAll('[data-hat]').forEach((b) => b.onclick = () => { d.look.hat = b.dataset.hat; save(); SFX.click(); applyMyLook(); showShop('hats'); });
     w.querySelectorAll('[data-shirt]').forEach((b) => b.onclick = () => { d.look.shirt = +b.dataset.shirt; save(); SFX.click(); applyMyLook(); showShop('look'); });
     w.querySelectorAll('[data-hc]').forEach((b) => b.onclick = () => { d.look.hatColor = +b.dataset.hc; save(); SFX.click(); applyMyLook(); showShop('look'); });
@@ -394,7 +417,7 @@ function applyMyUpgrades() { const u = myUpg(); if (App.me) { App.me.upg = u; co
 function applyMyLook() { if (App.me) { const p = S.players.find((q) => q.id === App.me.id); if (p) p.look = Object.assign({}, SV.d.look); App.me.look = p ? p.look : SV.d.look; } if (App.mode === 'guest') Net.hello(); }
 function showTrophies() {
   const s = SV.d.stats;
-  panel(`<h2>🏆 TROPHIES</h2><div class="statGrid"><div><b>${s.rounds}</b>Rounds</div><div><b>${s.waves}</b>Disasters survived</div><div><b>${s.revives}</b>Friends helped</div><div><b>${s.earned}</b>Coins earned</div><div><b>${s.kos}</b>Knockouts</div><div><b>${Object.keys(s.survived).length}/9</b>Disaster types</div></div><h3>ACHIEVEMENTS (${Object.keys(SV.d.ach).length}/${ACH.length})</h3>${ACH.map((a) => `<div class="ach ${SV.d.ach[a.id] ? 'on' : ''}"><div class="ic">${a.icon}</div><div><b>${a.name}</b><br><small>${a.desc}</small></div></div>`).join('')}<h3>SURVIVED</h3><div class="statGrid">${ORDER.map((id) => `<div><b>${DZ[id].icon} ${s.survived[id] || 0}</b>${DZ[id].name}</div>`).join('')}</div><div class="btnrow"><button class="btn gray" data-close>BACK</button></div>`, null, { name: 'trophies', pause: true });
+  panel(`<h2>🏆 TROPHIES</h2><div class="statGrid"><div><b>${s.rounds}</b>Rounds</div><div><b>${s.waves}</b>Disasters survived</div><div><b>${s.revives}</b>Friends helped</div><div><b>${s.earned}</b>Coins earned</div><div><b>${s.kos}</b>Knockouts</div><div><b>${allOrder().filter((id) => s.survived[id]).length}/${allOrder().length}</b>Disaster types</div></div><h3>ACHIEVEMENTS (${Object.keys(SV.d.ach).length}/${ACH.length})</h3>${ACH.map((a) => `<div class="ach ${SV.d.ach[a.id] ? 'on' : ''}"><div class="ic">${a.icon}</div><div><b>${a.name}</b>${a.dlc ? ' <span class="dlcTag">⚡ DLC</span>' : ''}<br><small>${a.desc}</small></div></div>`).join('')}<h3>SURVIVED</h3><div class="statGrid">${allOrder().map((id) => `<div><b>${DZ[id].icon} ${s.survived[id] || 0}</b>${DZ[id].name}</div>`).join('')}</div><div class="btnrow"><button class="btn gray" data-close>BACK</button></div>`, null, { name: 'trophies', pause: true });
 }
 function showHowTo() {
   panel(`<h2>❓ HOW TO PLAY</h2><div class="howto"><div class="row"><span>🕹️</span><p>Drag the <b>left side</b> to run. Drag the <b>right side</b> to look around, pinch to zoom. Tap <b>JUMP</b> to jump.</p></div>
@@ -402,6 +425,7 @@ function showHowTo() {
   <div class="row"><span>🏠</span><p>Walk into buildings through the door. Glowing pads take you <b>down to basements</b> ⬇ or <b>up to rooftops</b> ⬆ - tap the yellow button.</p></div>
   <div class="row"><span>🛡️</span><p>Each disaster has its own safe spots: <b>underground</b> for kaiju, <b>high ground</b> for tsunamis, <b>under tables</b> for earthquakes, <b>indoors</b> for lightning, hail and UFOs.</p></div>
   <div class="row"><span>💫</span><p>Get knocked out? Wait a moment, or a friend can stand next to you to <b>help you up</b>. Helping others earns coins!</p></div>
+  ${DLC.owned() ? '<div class="row"><span>⚡</span><p><b>Super Thunder:</b> sturdy buildings for <b>acid storms</b> and <b>dragons</b>; get <b>up high</b> when the dinos stampede!</p></div>' : ''}
   <div class="row"><span>🪙</span><p>Earn coins for surviving, helping and grabbing coins. Spend them in the <b>Shop</b>, or pay 40 to <b>pick the next disaster</b>. Cha-ching!</p></div></div>
   <div class="btnrow"><button class="btn green" data-close>GOT IT!</button></div>`, null, { name: 'howto', pause: true });
 }
@@ -428,7 +452,7 @@ function showResults() {
   }, { name: 'results' });
 }
 App.showResults = showResults;
-App.panel = panel; App.esc = esc; App.loadMap = loadMap; App.handleFx = handleFx; App.handleMsgs = handleMsgs; App.achieve = achieve;
+App.panel = panel; App.esc = esc; App.repair = repairBuilding; App.myUpg = myUpg; App.enterGame = enterGame; App.Hunt = Hunt; App.DLC = DLC; App.loadMap = loadMap; App.handleFx = handleFx; App.handleMsgs = handleMsgs; App.achieve = achieve;
 /* ---------------- boot ---------------- */
 buildHud(); buildTitle();
 loadMap(Q.get('map') || 'city');

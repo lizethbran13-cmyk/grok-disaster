@@ -87,7 +87,7 @@ export { mesh };
 
 /* ---------------- survivors ---------------- */
 export const SKINS = [0xf6c9a0, 0xe0a979, 0xb97a4f, 0x8a5a3b, 0xffd9b8];
-export const HATS = ['none', 'cap', 'hardhat', 'cowboy', 'crown', 'party', 'astro', 'dino', 'beanie', 'chef'];
+export const HATS = ['none', 'cap', 'hardhat', 'cowboy', 'crown', 'party', 'astro', 'dino', 'beanie', 'chef', 'meteo', 'ratears'];
 export function makeSurvivor(look) {
   look = Object.assign({ skin: SKINS[0], shirt: 0x3b82f6, pants: 0x334155, hair: 0x3a2516, hat: 'cap', hatColor: 0xef4444, shoes: 0xffffff }, look || {});
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
@@ -162,6 +162,13 @@ export function setHat(P, hat, color = 0xef4444) {
   else if (hat === 'astro') { mesh(GEO.sphere(0.5, 32, 24), M(0xbfe6ff, { r: 0.05, op: 0.28, cc: 1 }), 0, 0.0, 0.02, g, false); mesh(GEO.torus(0.42, 0.06, 6.28, 10, 32), M(0xf1f5f9, { r: 0.4 }), 0, -0.3, 0, g).rotation.x = Math.PI / 2; }
   else if (hat === 'dino') { const d = M(0x4ade80, { r: 0.6 }); mesh(new THREE.SphereGeometry(0.39, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.55), d, 0, -0.03, -0.02, g); for (let i = 0; i < 4; i++) mesh(GEO.cone(0.07, 0.18, 10), M(0xfacc15), 0, 0.36 - i * 0.04, -0.1 - i * 0.12, g).rotation.x = -0.5 - i * 0.25; }
   else if (hat === 'beanie') { mesh(new THREE.SphereGeometry(0.37, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), c, 0, -0.02, 0, g); mesh(GEO.sphere(0.09, 12, 8), M(0xffffff, { r: 0.9 }), 0, 0.37, 0, g); }
+  else if (hat === 'meteo') { // Weather Hunter: fuzzy earmuff beanie with snow goggles
+    mesh(new THREE.SphereGeometry(0.37, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), M(0x7c3aed, { r: 0.85 }), 0, -0.02, 0, g); mesh(GEO.torus(0.36, 0.05, 6.283, 8, 28), M(0xffffff, { r: 0.9 }), 0, 0.0, 0, g).rotation.x = Math.PI / 2;
+    [-1, 1].forEach((s) => mesh(GEO.sphere(0.13, 14, 10), M(0xffffff, { r: 0.95 }), s * 0.35, -0.12, 0, g)); mesh(GEO.sphere(0.1, 12, 8), M(0xfacc15, { r: 0.8 }), 0, 0.38, 0, g);
+    mesh(GEO.torus(0.33, 0.035, Math.PI, 6, 20), M(0x111827), 0, 0.12, 0.02, g).rotation.set(0, 0, 0); [-1, 1].forEach((s) => mesh(GEO.cyl(0.1, 0.1, 0.06, 16), M(0x38bdf8, { r: 0.05, m: 0.4, cc: 1 }), s * 0.12, 0.16, 0.3, g).rotation.x = Math.PI / 2); }
+  else if (hat === 'ratears') { // Ratita Industries staff headband: big grey mouse ears
+    mesh(GEO.torus(0.34, 0.03, Math.PI, 6, 20), M(0x111827, { r: 0.5 }), 0, 0.02, 0, g).rotation.y = Math.PI / 2;
+    [-1, 1].forEach((s) => { mesh(GEO.sphere(0.2, 18, 12), M(0x9ca3af, { r: 0.5 }), s * 0.3, 0.3, -0.02, g).scale.set(1, 1, 0.3); mesh(GEO.sphere(0.13, 14, 10), M(0xf9a8d4, { r: 0.5 }), s * 0.3, 0.3, 0.03, g).scale.set(1, 1, 0.25); }); }
   else if (hat === 'chef') { const w = M(0xffffff, { r: 0.8 }); mesh(GEO.cyl(0.3, 0.3, 0.25, 24), w, 0, 0.12, 0, g); [[0, 0.38, 0], [0.15, 0.33, 0.05], [-0.15, 0.33, 0.05], [0, 0.33, -0.15]].forEach((p) => mesh(GEO.sphere(0.2, 16, 12), w, p[0], p[1], p[2], g)); }
 }
 export function setJetpack(P, on) {

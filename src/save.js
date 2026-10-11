@@ -13,7 +13,8 @@ export const SHOP = [
 export const HATSHOP = [
   { id: 'cap', name: 'Ball Cap', price: 0 }, { id: 'beanie', name: 'Beanie', price: 60 }, { id: 'party', name: 'Party Hat', price: 80 },
   { id: 'cowboy', name: 'Cowboy Hat', price: 120 }, { id: 'chef', name: 'Chef Hat', price: 120 }, { id: 'dino', name: 'Dino Hood', price: 200 },
-  { id: 'astro', name: 'Space Helmet', price: 250 }, { id: 'crown', name: 'Golden Crown', price: 400 }, { id: 'none', name: 'No Hat', price: 0 }
+  { id: 'astro', name: 'Space Helmet', price: 250 }, { id: 'crown', name: 'Golden Crown', price: 400 }, { id: 'none', name: 'No Hat', price: 0 },
+  { id: 'ratears', name: 'Ratita Ears', price: 150, dlc: 1 }, { id: 'meteo', name: 'Weather Hunter Hat', reward: 'Solve a Weather Hunter case', dlc: 1 }
 ];
 export const SHIRTS = [0x3b82f6, 0xef4444, 0x22c55e, 0xf59e0b, 0xa855f7, 0xec4899, 0x14b8a6, 0xf97316, 0x111827, 0xffffff];
 export const ACH = [
@@ -29,11 +30,17 @@ export const ACH = [
   { id: 'travel', icon: '🗺️', name: 'World Traveler', desc: 'Play on all 4 maps' },
   { id: 'picker', icon: '🎯', name: 'Disaster Picker', desc: 'Pay coins to choose a disaster' },
   { id: 'cover', icon: '🪑', name: 'Drop, Cover, Hold On', desc: 'Hide under a table during an earthquake' },
-  { id: 'rounds10', icon: '🏆', name: 'Disaster Pro', desc: 'Finish 10 rounds' }
+  { id: 'rounds10', icon: '🏆', name: 'Disaster Pro', desc: 'Finish 10 rounds' },
+  { id: 'acid', icon: '🧪', name: 'Goo-Proof', desc: 'Survive an acid storm without a knockout', dlc: 1 },
+  { id: 'dragon', icon: '🐉', name: 'Dragon Dodger', desc: 'Survive EMBERWING the dragon without a knockout', dlc: 1 },
+  { id: 'dino', icon: '🦖', name: 'Stampede Survivor', desc: 'Survive the dino destruction without a knockout', dlc: 1 },
+  { id: 'hunter', icon: '🌨️', name: 'Weather Hunter', desc: 'Solve your first Ratita Industries case', dlc: 1 },
+  { id: 'hunter3', icon: '🏅', name: 'Chief Meteorologist', desc: 'Solve all 3 Weather Hunter cases', dlc: 1 },
+  { id: 'storm12', icon: '⛈️', name: 'Super Storm Chaser', desc: 'Survive all 12 disaster types', dlc: 1 }
 ];
 function fresh() {
   return { v: 1, coins: 150, name: '', look: { shirt: 0x3b82f6, pants: 0x334155, skin: 0xf6c9a0, hair: 0x3a2516, hat: 'cap', hatColor: 0xef4444 }, upg: {}, hats: ['cap', 'none'],
-    stats: { rounds: 0, waves: 0, kos: 0, revives: 0, earned: 0, survived: {}, maps: {}, best: 0, picks: 0, coinsPicked: 0 }, ach: {}, opts: { gfx: 'high', sound: true }, howto: false };
+    stats: { rounds: 0, waves: 0, kos: 0, revives: 0, earned: 0, survived: {}, maps: {}, best: 0, picks: 0, coinsPicked: 0 }, ach: {}, opts: { gfx: 'high', sound: true }, howto: false, hunt: {} };
 }
 export const S = { d: fresh() };
 export function load() {

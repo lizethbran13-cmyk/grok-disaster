@@ -9,8 +9,8 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 
 export const G = {
   quality: 'high', ao: true, renderer: null, scene: null, camera: null, composer: null, sky: null, sun: null, hemi: null,
-  focus: new THREE.Vector3(), fps: 60, slowT: 0, autoStep: true, onStepDown: null, shake: 0, t: 0,
-  mood: null, moodT: null
+  focus: new THREE.Vector3(), fps: 60, slowT: 0, fastT: 0, pr: 1, prBase: 1, prCap: 1, onSharpen: null, shake: 0, t: 0,
+  mood: null, moodT: null, aoFull: /[?&]aofull=1/.test(location.search) // aofull=1: old separate AO g-buffer pass (comparison only)
 };
 const MOODS = { // bright, saturated cartoon palette (top sky, horizon, fog)
   sunny:   { top: 0x1ea7ff, hor: 0xbff4ff, elev: 48, azim: 140, sunI: 2.4, hemiI: 1.05, fog: 0xb6ecff, fogNear: 90, fogFar: 320, exp: 1.0, env: 0.45, sunCol: 0xfff4dc, gnd: 0x9fd27a },
@@ -29,6 +29,7 @@ export function initGfx(canvas) {
   r.outputColorSpace = THREE.SRGBColorSpace;
   r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1.0;
   r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+  r.shadowMap.autoUpdate = false; // the shadow map is rendered ONCE per frame (render() flags it), not again inside the AO pass
   const scene = G.scene = new THREE.Scene();
   const cam = G.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 600);
   cam.position.set(20, 20, 20);
@@ -64,9 +65,19 @@ function buildComposer() {
   if (G.composer) { G.composer.dispose && G.composer.dispose(); G.composer = null; }
   if (G.quality !== 'high') return;
   const w = innerWidth, h = innerHeight;
-  const c = new EffectComposer(r);
+  // the main pass writes a depth texture that the AO pass reads directly (AO used to re-draw the whole scene a 2nd time)
+  const pr = r.getPixelRatio(), rt = new THREE.WebGLRenderTarget(Math.round(w * pr), Math.round(h * pr), { type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(Math.round(w * pr), Math.round(h * pr)) });
+  const c = new EffectComposer(r, rt);
   c.addPass(new RenderPass(G.scene, G.camera));
-  if (G.ao) {
+  if (G.ao && !G.aoFull) {
+    const ao = new GTAOPass(G.scene, G.camera, w, h); ao.setGBuffer(c.renderTarget2.depthTexture); // its own normal target is never drawn, so it never allocates
+    const aoRender = ao.render; ao.render = function (rr, wb, rb, dt, mask) { const d = rb.depthTexture; if (d && this.gtaoMaterial.uniforms.tDepth.value !== d) { this.depthTexture = d; this.gtaoMaterial.uniforms.tDepth.value = d; this.pdMaterial.uniforms.tDepth.value = d; } return aoRender.call(this, rr, wb, rb, dt, mask); };
+    ao.output = GTAOPass.OUTPUT.Default;
+    ao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 1.4, thickness: 1.5, scale: 1.0, samples: 12 });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+    ao.blendIntensity = 0.7;
+    c.addPass(ao); G.aoPass = ao;
+  } else if (G.ao) {
     const ao = new GTAOPass(G.scene, G.camera, w, h);
     ao.output = GTAOPass.OUTPUT.Default;
     ao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 1.4, thickness: 1.5, scale: 1.0, samples: 12 });
@@ -83,13 +94,15 @@ function buildComposer() {
 export function setQuality(q) {
   G.quality = q === 'low' ? 'low' : 'high';
   const r = G.renderer, dpr = window.devicePixelRatio || 1;
-  r.setPixelRatio(G.quality === 'high' ? Math.min(dpr, 2) : Math.min(dpr, 1.25));
+  // auto-sharpness: starts at the normal default for the chosen quality and may only go UP from there
+  G.prBase = G.quality === 'high' ? Math.min(dpr, 2) : Math.min(dpr, 1.25); G.prCap = G.quality === 'high' ? Math.min(dpr, 3) : G.prBase;
+  G.pr = G.prBase; r.setPixelRatio(G.pr);
   r.shadowMap.enabled = true;
   const sz = G.quality === 'high' ? 2048 : 1024;
   if (G.sun.shadow.mapSize.x !== sz) { G.sun.shadow.mapSize.set(sz, sz); if (G.sun.shadow.map) { G.sun.shadow.map.dispose(); G.sun.shadow.map = null; } }
   r.shadowMap.type = G.quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
   G.scene.traverse((o) => { if (o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach((m) => m.needsUpdate = true); } });
-  buildComposer(); resize(); G.slowT = 0;
+  buildComposer(); resize(); G.slowT = 0; G.fastT = 0;
 }
 
 export function resize() {
@@ -133,12 +146,19 @@ export function render(dt) {
   G.sun.position.set(fx + d.x * 90, Math.max(f.y, 0) + Math.max(0.25, d.y) * 90, fz + d.z * 90);
   G.sun.target.position.set(fx, Math.max(f.y, 0), fz); G.sun.target.updateMatrixWorld();
   if (G.flash.intensity > 0) G.flash.intensity = Math.max(0, G.flash.intensity - dt * 60);
+  G.renderer.shadowMap.needsUpdate = true;
   if (G.composer) G.composer.render(dt); else G.renderer.render(G.scene, G.camera);
-  // auto step-down: HIGH -> LOW if under 30 fps for 5 seconds
   const now = performance.now(), rd = Math.min(1, (now - (G._lt || now)) / 1000); G._lt = now; // real (unclamped) frame time
   if (rd > 0) G.fps += (1 / Math.max(rd, 1e-3) - G.fps) * Math.min(1, rd * 3);
   if (document.hidden) return;
-  if (G.autoStep && G.quality === 'high' && G.fps < 30) { G.slowT += rd; if (G.slowT > 5) { setQuality('low'); G.onStepDown && G.onStepDown(); } }
-  else G.slowT = Math.max(0, G.slowT - rd * 2);
+  autoSharp(rd);
 }
+// never downgrades: no automatic switch to LOW. Extra sharpness is added while the phone has headroom and taken
+// back (only down to the normal default, never below) if it ever costs smoothness.
+function autoSharp(rd) {
+  const fps = G.fakeFps || G.fps;
+  if (G.pr < G.prCap && fps > 57) { G.fastT += rd; if (G.fastT > 4) { G.fastT = 0; setPR(Math.min(G.prCap, G.pr + 0.25)); } } else G.fastT = Math.max(0, G.fastT - rd);
+  if (G.pr > G.prBase && fps < 45) { G.slowT += rd; if (G.slowT > 2) { G.slowT = 0; G.prCap = Math.max(G.prBase, G.pr - 0.25); setPR(G.prCap); } } else G.slowT = Math.max(0, G.slowT - rd);
+}
+function setPR(v) { if (v === G.pr) return; G.pr = v; G.renderer.setPixelRatio(v); if (G.composer) G.composer.setPixelRatio(v); resize(); G.onSharpen && G.onSharpen(v); }
 export { THREE };

@@ -47,11 +47,13 @@ export function setupAmbient(W, scene, low) {
     A.birds.push({ g, a: Math.random() * 6.28, r: 12 + Math.random() * 30, cx: (Math.random() - 0.5) * 60, cz: (Math.random() - 0.5) * 60, y: 16 + Math.random() * 12, sp: 0.25 + Math.random() * 0.2 });
   }
 }
-export function clearAmbient(scene) { if (A.root) scene.remove(A.root); A.npcs = []; A.cars = []; A.birds = []; A.root = null; }
+const _fr = new THREE.Frustum(), _pm = new THREE.Matrix4(), _s = new THREE.Sphere();
+export function clearAmbient(scene) { if (A.root) { scene.remove(A.root); A.root.traverse((o) => { if (o.geometry && o.geometry.userData.batch) o.geometry.dispose(); }); } A.npcs = []; A.cars = []; A.birds = []; A.root = null; }
 export function updateAmbient(dt, W, S, people, t, cam) {
   if (!A.root || !W) return;
   const danger = S.phase === 'warn' || S.phase === 'active';
   const spots = W.coinSpots;
+  let fr = null; if (cam) { cam.updateMatrixWorld(); _pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); fr = _fr.setFromProjectionMatrix(_pm); }
   for (const n of A.npcs) {
     if (danger && !n.hid && n.st !== 'flee') { // run for the nearest door
       let best = null, bd = 1e9; for (const b of W.buildings) { if (b.wrecked || !b.doorOut) continue; const d = Math.hypot(b.doorOut.x - n.x, b.doorOut.z - n.z); if (d < bd) { bd = d; best = b; } }
@@ -75,6 +77,7 @@ export function updateAmbient(dt, W, S, people, t, cam) {
     n.y = W.terrain(n.x, n.z);
     n.P.root.position.set(n.x, n.y, n.z); n.P.root.rotation.y = n.yaw;
     const far = cam && Math.hypot(cam.position.x - n.x, cam.position.z - n.z) > 55; n.P.root.visible = !far; if (far) continue;
+    if (fr && !fr.intersectsSphere(_s.set(_s.center.set(n.x, n.y + 0.9, n.z), 1.3))) continue; // offscreen: keep walking, skip the animation work
     animSurvivor(n.P, sp > 0 ? 'run' : 'idle', dt, sp / 5, t);
     if (n.st === 'flee') { n.P.arms.forEach((a) => { a.rotation.x = -2.7; }); }
   }

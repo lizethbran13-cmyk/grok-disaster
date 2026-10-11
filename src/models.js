@@ -34,7 +34,7 @@ export function mat4(x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = sx, sz = sx) 
 let UBER = null;
 export function uberMat() {
   if (UBER) return UBER;
-  UBER = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 1 });
+  UBER = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 1 }); UBER.userData.keep = true;
   UBER.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 rm; attribute vec3 em; varying vec2 vRM; varying vec3 vEM;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRM = rm; vEM = em;');
@@ -73,7 +73,7 @@ export class Batch {
     const out = [];
     for (const [mat, list] of this.groups) {
       if (!list.length) continue;
-      const g = mergeGeometries(list, false); list.forEach((x) => x.dispose());
+      const g = mergeGeometries(list, false); list.forEach((x) => x.dispose()); g.userData.batch = true;
       const mesh = new THREE.Mesh(g, mat); mesh.castShadow = o.cast !== false && !mat.transparent; mesh.receiveShadow = o.receive !== false;
       mesh.matrixAutoUpdate = false; mesh.updateMatrix(); parent.add(mesh); out.push(mesh);
     }

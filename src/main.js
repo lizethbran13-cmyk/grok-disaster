@@ -13,6 +13,7 @@ import { I, initInput, readMove } from './input.js';
 import { initAudio, SFX, setSound, ambience } from './audio.js';
 import { S as SV, load, save, SHOP, HATSHOP, SHIRTS, ACH, lvl, addCoins, unlock, myUpg } from './save.js';
 import { Net } from './net.js';
+import { chunkStatic, farCull, warmShaders, freeTree } from './perf.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -20,26 +21,29 @@ const Q = new URLSearchParams(location.search);
 const App = window.__dz = { ready: false, mode: 'menu', W: null, S, G, I, me: null, myPid: 'me', models: new Map(), paused: false, simSpeed: 1 };
 load();
 initGfx($('c'));
-G.autoStep = !Q.get('noauto');
-G.onStepDown = () => { SV.d.opts.gfx = 'low'; save(); toast('Graphics set to LOW for smoother play 🎮'); };
+// graphics are never downgraded automatically any more. Older versions could silently flip a phone to LOW, so
+// that saved LOW is cleared once; LOW now only ever comes from the player picking it in Settings.
+if (!SV.d.opts.gfxManual) { if (SV.d.opts.gfx === 'low') SV.d.opts.gfx = 'high'; SV.d.opts.gfxManual = 1; save(); }
 if (SV.d.opts.gfx === 'low' || Q.get('gfx') === 'low') setQuality('low');
 initFX(); initInput(); setSound(SV.d.opts.sound);
 
 /* ---------------- map loading ---------------- */
 function loadMap(id) {
   if (App.W && App.W.id === id) return App.W;
-  if (App.W) { G.scene.remove(App.W.root); App.W.root.traverse((o) => { if (o.geometry && !o.geometry.userData.keep) o.geometry.dispose(); }); }
-  App.models.forEach((m) => G.scene.remove(m.root)); App.models.clear();
+  if (App.W) { G.scene.remove(App.W.root); freeTree(App.W.root, true); App.W = null; } // free the old map's GPU memory
+  App.models.forEach((m) => { G.scene.remove(m.root); freeTree(m.root); }); App.models.clear();
   resetVisuals(); clearFX();
   const W = buildMap(id, G.scene); App.W = W; H.W = W; H.scene = W.root;
+  W.chunks = chunkStatic(W, W.root, 40); // region culling cells
   setMood(W.meta.mood, true); bakeWaterHeight(W); setupAmbient(W, G.scene, G.quality === 'low');
+  G.renderer.renderLists.dispose(); warmShaders(G.renderer, G.scene, G.camera);
   return W;
 }
 /* ---------------- survivors ---------------- */
 function modelFor(p) {
   let m = App.models.get(p.id);
   const key = JSON.stringify(p.look) + (p.upg && p.upg.jetpack ? 'j' : '');
-  if (m && m.key !== key) { G.scene.remove(m.root); m = null; }
+  if (m && m.key !== key) { G.scene.remove(m.root); freeTree(m.root); m = null; }
   if (!m) { m = makeSurvivor(p.look); m.key = key; setJetpack(m, p.upg && p.upg.jetpack); m.root.position.set(p.x, p.y, p.z); G.scene.add(m.root); App.models.set(p.id, m); }
   return m;
 }
@@ -60,7 +64,7 @@ function drawSurvivors(dt) {
     m.umbrella.visible = !!(p.upg && p.upg.umbrella) && wet && st !== 'ko' && st !== 'swim';
     m.root.visible = !(p.inv > 0 && p.st === 'ok' && Math.floor(G.t * 12) % 2 === 0);
   }
-  App.models.forEach((m, id) => { if (!seen.has(id)) { G.scene.remove(m.root); App.models.delete(id); } });
+  App.models.forEach((m, id) => { if (!seen.has(id)) { G.scene.remove(m.root); freeTree(m.root); App.models.delete(id); } });
 }
 /* ---------------- coins ---------------- */
 const _o = new THREE.Object3D();
@@ -224,6 +228,7 @@ function cullDetail() { // interiors only near you, underground rooms only while
   for (const b of W.buildings) if (b.inner) b.inner.visible = !!me && !under && Math.abs(f.x - b.x) < 26 + b.w / 2 && Math.abs(f.z - b.z) < 26 + b.d / 2;
   if (me) for (const f of W.fires) if ((!f.b || !f.b.wrecked) && Math.abs(f.x - me.x) < 30 && Math.abs(f.z - me.z) < 30) { const fx = f.b ? f.x : f.x, fz = f.b ? f.z : f.z; puff(f.fx != null ? f.fx : fx, (f.y || 0) + 0.5, f.fz != null ? f.fz : fz, 2, [0xff7b00, 0xffb703, 0xff4d00], { fire: 1, sp: 0.3, up: 2.2, s: 0.35, s1: 0.05, life: 0.7, spread: 0.6 }); }
   for (const r of W.rooms) r.group.visible = !!under && f.x > r.x0 - 3 && f.x < r.x1 + 3 && f.z > r.z0 - 3 && f.z < r.z1 + 3;
+  farCull(W, G.camera);
 }
 function weatherNow() {
   const e = S.env || {}, on = S.phase === 'active'; const under = App.me && App.me.y < UNDER + 8;
@@ -401,7 +406,7 @@ function showHowTo() {
   <div class="btnrow"><button class="btn green" data-close>GOT IT!</button></div>`, null, { name: 'howto', pause: true });
 }
 function showSettings() {
-  panel(`<h2>⚙️ SETTINGS</h2><h3>GRAPHICS</h3><div class="tabs"><button data-g="high" class="${G.quality === 'high' ? 'on' : ''}">✨ HIGH</button><button data-g="low" class="${G.quality === 'low' ? 'on' : ''}">⚡ LOW</button></div><p class="sub">HIGH has soft shadows, glow and ambient occlusion. LOW runs smoother on older phones. The game switches to LOW by itself if it gets slow.</p><h3>SOUND</h3><div class="tabs"><button data-s="1" class="${SV.d.opts.sound ? 'on' : ''}">🔊 ON</button><button data-s="0" class="${!SV.d.opts.sound ? 'on' : ''}">🔇 OFF</button></div><div class="btnrow"><button class="btn gray" data-close>DONE</button></div>`, (w) => {
+  panel(`<h2>⚙️ SETTINGS</h2><h3>GRAPHICS</h3><div class="tabs"><button data-g="high" class="${G.quality === 'high' ? 'on' : ''}">✨ HIGH</button><button data-g="low" class="${G.quality === 'low' ? 'on' : ''}">⚡ LOW</button></div><p class="sub">HIGH has soft shadows, glow and ambient occlusion. LOW runs smoother on older phones. The game never lowers this by itself; it only sharpens the picture when your phone has power to spare.</p><h3>SOUND</h3><div class="tabs"><button data-s="1" class="${SV.d.opts.sound ? 'on' : ''}">🔊 ON</button><button data-s="0" class="${!SV.d.opts.sound ? 'on' : ''}">🔇 OFF</button></div><div class="btnrow"><button class="btn gray" data-close>DONE</button></div>`, (w) => {
     w.querySelectorAll('[data-g]').forEach((b) => b.onclick = () => { setQuality(b.dataset.g); SV.d.opts.gfx = b.dataset.g; save(); showSettings(); });
     w.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { SV.d.opts.sound = b.dataset.s === '1'; setSound(SV.d.opts.sound); save(); showSettings(); });
   }, { name: 'settings', pause: true });
@@ -436,5 +441,5 @@ App.sim = (sec, sub = 0.05) => { for (let t = 0; t < sec; t += sub) step(sub); }
 App.wreck = (b) => wreckBuilding(App.W, App.W.root, b);
 App.force = (id) => { if (S.phase !== 'calm') return; S.next = id; S.picked = true; S.t = 0.01; App.sim(7.2); };
 App.tp = (x, y, z) => { const m = App.me; m.x = x; m.y = y; m.z = z; m.vy = 0; const p = S.players.find((q) => q.id === m.id); if (p && p !== m) { p.x = x; p.y = y; p.z = z; } };
-App.setMood = setMood; App.SV = SV; App.save = save; App.DZ = DZ; App.H = H; App.shelter = shelter; App.Net = Net;
+App.THREE = THREE; App.setMood = setMood; App.SV = SV; App.save = save; App.DZ = DZ; App.H = H; App.shelter = shelter; App.Net = Net;
 const grokParams = window.GrokNet && GrokNet.params && GrokNet.params(); if (grokParams) Net.fromParams(grokParams);

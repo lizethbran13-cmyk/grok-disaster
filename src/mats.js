@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-const cache = new Map();
+const cache = new Map(), owned = new WeakSet();
+export function isCached(m) { return owned.has(m); }
 // physically based material cache. o: {r: roughness, m: metalness, e: emissive hex, ei, cc: clearcoat, op: opacity}
 export function M(color, o) {
   o = o || {};
@@ -12,15 +13,15 @@ export function M(color, o) {
   if (o.cc) { P.clearcoat = o.cc; P.clearcoatRoughness = o.ccr != null ? o.ccr : 0.25; m = new THREE.MeshPhysicalMaterial(P); }
   else m = new THREE.MeshStandardMaterial(P);
   if (o.flat) m.flatShading = true;
-  cache.set(key, m); return m;
+  cache.set(key, m); owned.add(m); return m;
 }
 export function glow(color, a) { // additive glow material (bloom catches it)
   const key = 'glow|' + color + '|' + a; let m = cache.get(key); if (m) return m;
   m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: a == null ? 0.6 : a, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-  cache.set(key, m); return m;
+  cache.set(key, m); owned.add(m); return m;
 }
 export function basic(color, o) {
   o = o || {}; const key = 'basic|' + color + JSON.stringify(o); let m = cache.get(key); if (m) return m;
   m = new THREE.MeshBasicMaterial(Object.assign({ color, toneMapped: o.tm !== undefined ? o.tm : false }, o.p || {}));
-  cache.set(key, m); return m;
+  cache.set(key, m); owned.add(m); return m;
 }

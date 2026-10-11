@@ -136,6 +136,8 @@ Hunt.hud = function () {
   let el = document.getElementById('huntCard'); if (!el) { el = document.createElement('div'); el.id = 'huntCard'; document.getElementById('hud').appendChild(el); }
   const id = stepId(), cnt = id === 'scan' ? ' ' + C.swirls.filter((q) => q.done).length + '/3' : id === 'probe' ? ' ' + C.probes.filter((q) => q.done).length + '/3' : '';
   const html = C.solved ? '<b>🏅 CASE SOLVED!</b> <button class="btn small" id="hcMenu">MENU</button>' : `<b>${C.cs.icon} ${A.esc(C.cs.title)}</b><div class="steps">${STEPS.map((s, i) => `<i class="${i < C.step ? 'on' : i === C.step ? 'cur' : ''}"></i>`).join('')}</div><div>${STEP_TXT[id] || ''}${cnt}</div>${C.dist != null ? `<div class="dist">📍 ${C.dist} m · follow the yellow pin</div>` : ''}<button class="btn small gray" id="hcClues">🔎 CLUES (${C.clues.length})</button>`;
+  // booth #34: the clue card lives on the RIGHT, just above the jump/action buttons, so it never covers the joystick (left side)
+  const cb = document.getElementById('ctrls'); if (cb) { const r = cb.getBoundingClientRect(); if (r.height > 0) { const b = Math.round(innerHeight - r.top + 10) + 'px'; if (el.style.bottom !== b) el.style.bottom = b; } }
   if (el._h !== html) { el._h = html; el.innerHTML = html; const b = document.getElementById('hcClues'); if (b) b.onclick = () => Hunt.showClues(); const m = document.getElementById('hcMenu'); if (m) m.onclick = () => A.quit(); }
   const wp = document.getElementById('wavePill'), tf = document.getElementById('timerFill'), chip = document.getElementById('safeChip');
   wp.textContent = C.solved ? '☀️ STORM OVER' : '🌨️ WEATHER HUNTER'; tf.style.width = Math.min(100, C.prog * 100) + '%';
